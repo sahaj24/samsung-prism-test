@@ -1,0 +1,26 @@
+.env
+.env.*
+!.env.example
+.venv/
+demo/node_modules/
+build/node_modules/
+build/node_modules
+build/video/
+build/slides/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+third_party/
+data/
+runs/
+dist/
+.codex-finalizer/
+build/*.log
+build/whisper-*.wav
+build/verify-*.png
+Theme 5_Guide.pdf
+Theme05_Participant_Guide_UPDATED_FBD.docx
+cooke
+deploy_gpt.py
