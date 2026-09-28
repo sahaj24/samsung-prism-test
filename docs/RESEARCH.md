@@ -45,4 +45,4 @@ Upstream commit: `3e799c45a045256f47d5f1c9cda90157e2d2ec9e`.
 
 The mock API computation is unchanged. Its delay profiles run with asynchronous sleep so listening remains responsive. For writes the artificial delay precedes commitment. This execution change is disclosed; the official rerun must use the organizer's required latency configuration.
 
-Hosted inference and LiveKit need network access and sufficient account quota. No alternate model or billing upgrade is enabled automatically. The official upstream judge currently needs `OPENAI_API_KEY`; no such credential has been supplied. The organizer's official score and ranking therefore remain unverified.
+Hosted inference and LiveKit need network access and sufficient account quota. No alternate model or billing upgrade is enabled automatically. A participant who chooses to run the upstream semantic judge locally needs a separate `OPENAI_API_KEY`; the Gemini agent and exact-match scorer do not. The organizer's official score and ranking remain unreported until the organizer evaluates the submission.

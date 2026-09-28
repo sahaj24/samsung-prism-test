@@ -3,7 +3,6 @@
 !.env.example
 .venv/
 demo/node_modules/
-build/node_modules/
 build/node_modules
 build/video/
 build/slides/

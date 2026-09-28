@@ -1,102 +1,116 @@
 # Reprise
 
-An interruptible LiveKit voice agent for Samsung Theme 05, using `gemini-3.8-live`.
+Reprise is a LiveKit voice agent built for Samsung Theme 05. It listens to spoken requests, handles changes of mind, calls the benchmark's tools, and answers aloud. Gemini Live handles the conversation; a small controller checks tool arguments and keeps an interrupted request from causing duplicate actions.
 
-Reprise listens for corrections while tools run, validates tool arguments, and prevents duplicate actions within an active request. Research rationale and limitations are in [docs/RESEARCH.md](docs/RESEARCH.md).
+## The measured result
 
+![Local exact-match result: 74 of 100 released recordings passed. Easy 31 of 36, medium 29 of 34, hard 14 of 30.](docs/benchmark-summary.svg)
 
-## Setup
+We played **all 100 released human recordings** through the agent and scored the saved tool calls with the [original Full-Duplex-Bench v3 exact-match scorer](https://github.com/DanielLin94144/Full-Duplex-Bench/tree/main/v3). The run used one source version throughout, the pinned upstream commit `3e799c45a045256f47d5f1c9cda90157e2d2ec9e`, `gemini-3.8-live`, two concurrent rooms, and the `instant` mock-tool latency profile.
 
-Requirements: Python 3.12 (managed by uv), [uv](https://docs.astral.sh/uv/getting-started/installation/), Git, FFmpeg, internet access, a Gemini API key with Live access, and a LiveKit project. Agent inference is hosted; no local GPU is required for the agent. The official ASR evaluation has separate GPU requirements.
+| Check | What we observed |
+| --- | ---: |
+| Strict tool-task passes | **74 / 100** |
+| Completed recordings | 100 / 100 |
+| Infrastructure errors or retries | 0 |
+| Cases with an audible agent response | 99 / 100 |
+| Average tool-selection accuracy | 91.8% |
+| Average argument accuracy | 81.7% |
+
+The last two percentages come from the upstream tool evaluator on the 99 cases with agent speech. Of the 26 strict failures, 15 involved the wrong set of tools and 11 involved wrong arguments. Difficult cases and requests needing two or three tools are the main remaining weakness: hard tasks passed **14/30**, while one-tool tasks passed **56/66**.
+
+**What the 74 means:** It is a repeatable score for these *saved outputs* under strict, literal argument matching. The organizer's official score is still unknown. The organizer may use a semantic judge, independent speech recognition, and a different latency setup. A fresh cloud-model run can also produce different answers. We do not combine this pass rate with the contest's other judging categories or treat it as a leaderboard rank.
+
+We also measured local timing estimates from the saved audio: **3.69 s** on average from agent voice-activity end to first audible reply (99 cases), and **2.37 s** to the first tool call (95 cases). These are useful development measurements, but they are not the paper's ASR-based first-response and task-completion metrics. Task-completion latency was not measured.
+
+## Verify the saved score without API keys
+
+The repository includes `dist/Reprise_Submission.zip`. It contains the run manifest, all 100 per-case results, tool events and client logs, and the score reports. The raw benchmark recordings are downloaded separately under the benchmark's license.
+
+From a fresh checkout, run:
+
+```sh
+./reproduce.sh setup
+reprise_verify_dir=$(mktemp -d)
+unzip -q dist/Reprise_Submission.zip -d "$reprise_verify_dir"
+uv run --frozen python third_party/fdb/v3/evaluate_pass_rate.py \
+  --benchmark third_party/fdb/v3/benchmark_data_v2.json \
+  --results-dir "$reprise_verify_dir/Reprise/evidence/released-v8" \
+  --provider reprise \
+  --output "$reprise_verify_dir/rechecked.json"
+```
+
+The original scorer should print **100 scenarios, 74 passed, 74.0%**. This check reads the archived tool calls; it does not contact Gemini or LiveKit. The evidence was also audited case by case: 100 unique recordings, one successful attempt per recording, matching tool-event counts, no session errors, and no source-hash changes.
+
+## Run the voice benchmark again
+
+You need Python 3.12 (installed by [uv](https://docs.astral.sh/uv/getting-started/installation/)), Git, FFmpeg, internet access, a Gemini API key with Live access, and a LiveKit Cloud project. The public audio download is about 700 MB. Keep only one default benchmark worker connected to that LiveKit project while testing.
 
 ```sh
 cp .env.example .env.local
-# Fill GOOGLE_API_KEY, LIVEKIT_URL, LIVEKIT_API_KEY and LIVEKIT_API_SECRET.
+# Fill GOOGLE_API_KEY, LIVEKIT_URL, LIVEKIT_API_KEY, and LIVEKIT_API_SECRET.
 chmod 600 .env.local
 ./reproduce.sh setup --data
 ./reproduce.sh doctor
-./reproduce.sh test
+./reproduce.sh all --seed 20260927 --concurrency 2 --name fresh-01
 ```
 
-Credentials stay in `.env.local`, which is ignored and excluded from the submission package. Never commit it. The setup command checks out the pinned benchmark revision and downloads the released audio. Keep its license and attribution.
+The example configuration matches the measured run: guarded controller, **1000 ms** read settling, **900 ms** write settling, and `instant` mock-tool delays.
 
-## Start the agent
+Check that `doctor` shows 100 audio files, 12 tool schemas, FFmpeg available, and accepted Gemini and LiveKit connections. Then `all` runs the behavior tests, starts its own worker, plays every released recording through the upstream streaming client, saves each tool trace, and stops the worker. Use a new `--name` for each run; an existing run is never overwritten.
 
-For a clean end-to-end run after filling `.env.local`, use one command:
+For an exact input match, `shasum -a 256 data/fdb_v3.zip` should print `37545bd896f81718136598cf5be25d42ea9aa22efcd91f58370938d05d7d672f`. If the archive differs, treat the new run as a different dataset version.
+
+Read `runs/fresh-01/report.json` for the new run's exact-match score. To recheck it with the original scorer:
 
 ```sh
-./reproduce.sh all --concurrency 2 --name released-01
+uv run --frozen python third_party/fdb/v3/evaluate_pass_rate.py \
+  --benchmark third_party/fdb/v3/benchmark_data_v2.json \
+  --results-dir runs/fresh-01 \
+  --provider reprise \
+  --output runs/fresh-01/upstream_exact_report.json
 ```
 
-It installs the locked environment, verifies the pinned benchmark and credentials, runs the behavior checks, starts a LiveKit worker, streams the selected recordings, writes the report, and stops the worker. If an `OPENAI_API_KEY` is present, it also runs the upstream semantic pass-rate judge. Without that key, the report is clearly marked provisional exact matching. For a short integration check, add `--limit 2`. Run this with no other default LiveKit worker connected to the same project.
+For a short connection check, add `--limit 2` to the `all` command and choose a different run name. That small check does not estimate the full score. You can also run `./reproduce.sh agent` and `./reproduce.sh evaluate --name fresh-01 --concurrency 2` in separate terminals.
 
-```sh
-./reproduce.sh agent
-```
-
-In another terminal:
-
-```sh
-# Deterministic development sample; provisional exact matching.
-./reproduce.sh evaluate --limit 12 --concurrency 2 --name development-01
-
-# All released recordings; use one session at a time for a stricter free quota.
-./reproduce.sh evaluate --concurrency 1 --name released-01
-```
-
-Each evaluation creates `runs/<name>/manifest.json`, per-recording audio and call traces, and an updating `report.json`. The manifest records the source digest, selected inputs, seed, model, upstream commit and infrastructure retry limit. Run names cannot be reused. Temporary connection or model-session failures are retried twice; every attempt and its error are retained in the per-recording evidence. A persistent LiveKit DNS outage pauses the run and then aborts it, rather than marking a series of recordings as agent failures. Do not change agent code during a measured run.
-
-**These commands produce provisional tool-completion results, not the organizer's official score.** They use the original streaming client and original exact-match strict scorer. They do not run the pinned semantic judge, independent ASR, response-quality evaluation, or organizer normalization.
-
-The best completed local run is `runs/released-v8`: 74/100 on all 100 released recordings, independently confirmed by the upstream exact-match pass-rate scorer. It had zero infrastructure failures and an unchanged source digest. The organizer's official score remains unreported.
-
-The upstream tool evaluator, rerun on the same saved recordings without the LLM judge, reports 91.8% average tool-selection accuracy and 81.7% average argument accuracy among 99 samples with agent speech. A separate `timing_proxy_report.json` measures 3.69 seconds from agent VAD speech end to first audible output (99 recordings) and 2.37 seconds to first tool call (95 recordings). These timing proxies use the saved audio and agent events, not the upstream independent ASR or task-completion judge, so they are not official latency results. The local run used the `instant` mock latency profile; published model timings use the paper's protocol and should not be compared as a ranking.
-
-## Architecture
+## How it handles a correction
 
 ```mermaid
 flowchart LR
-    U[Microphone] --> LK[LiveKit room]
-  LK --> G[Gemini 3.8 Live]
-  G --> P[Tool proposal]
-  P --> C[Revision and commit controller]
-  C --> API[Public mock APIs / support lookup]
-  API --> C
-  C --> G
-  G --> S[Streaming speech]
-  C --> T[Append-only call trace]
+  A[Spoken request] --> B[Gemini Live]
+  B --> C[Tool proposal]
+  C --> D[Revision and argument check]
+  D --> E[Public benchmark tool]
+  E --> F[Spoken answer]
+  D --> G[Call trace]
 ```
 
-Every proposal gets the current input revision. The controller rejects obsolete preparation, validates arguments and checks dependent identifiers against previous results or an explicitly spoken ID. Identical pending actions share one operation. Executed writes remain in the ledger when speech is interrupted. All dispatched benchmark calls enter `/tmp/agent_tool_calls.log` for compatibility with the original harness.
+Each proposal carries the current input revision. If the user corrects a request before a tool is dispatched, the older proposal is dropped. The controller also checks arguments, uses results from earlier calls when a later call depends on them, and merges identical pending actions. Once a write has been dispatched, it stays in the action ledger. The twelve benchmark API contracts are public; the agent contains no scenario answers. `REPRISE_POLICY=baseline` disables those controller safeguards for an ablation.
 
-`REPRISE_POLICY=baseline` removes the revision barrier, result provenance checks and duplicate suppression, providing an ablation with the same audio model, prompt and tool contracts. `guarded` enables the controller. The default settle intervals are 1000 ms for reads and 900 ms for writes, in addition to the model's endpointing.
+## Washer-support demonstration
 
-## Washer-help extension
-
-Keep the agent running in the first terminal. In a second terminal:
+The repository also has a small Samsung washer-code lookup. With credentials set, start the agent, then the dashboard in another terminal:
 
 ```sh
+./reproduce.sh agent
+# In a second terminal:
 npm ci --prefix demo
 ./reproduce.sh demo
 ```
 
-Open `http://127.0.0.1:8844` on the same computer, click **Start conversation**, and allow microphone access. The browser gets a short-lived LiveKit room token from a server bound to loopback; the API secret stays in `.env.local`. A room created by the demo selects the `lookup_manual` tool instead of benchmark tools. The dashboard shows the live conversation, action timeline, source lookup, and the clearly labeled 74/100 local benchmark result. The support lookup covers general Samsung washer codes 4C/4E and 5C/5E. It states when it cannot find a code. The prototype does not verify model-specific steps or control an appliance.
+Open `http://127.0.0.1:8844`, allow microphone access, and start a conversation. The dashboard shows speech, tool actions, and the source used for an answer. The lookup covers general 4C/4E and 5C/5E guidance from [Samsung UK](https://www.samsung.com/uk/support/home-appliances/what-do-the-codes-on-my-washing-machine-mean/); it cannot diagnose a specific appliance or control it. The bundled extension replay uses a **synthetic test voice**, labeled as such in the video.
 
-The source is [Samsung UK's washing machine code guide](https://www.samsung.com/uk/support/home-appliances/what-do-the-codes-on-my-washing-machine-mean/). An actual audio replay with synthetic spoken input is stored in `runs/extension-question.wav`, `runs/extension-response.wav`, and the matching `runs/reprise-demo-*/events.jsonl` trace; these development files are not in the clean submission package unless explicitly copied into its evidence folder.
+In this GitHub checkout, the final assets are in `dist/`: `Reprise_Submission.zip`, `Reprise_recorded_demo.mp4` (3:04), and `Reprise_Theme05_Submission.pptx` (eight slides). Inside the ZIP, the video and deck are at its top level. Credentials stay in ignored `.env.local` and are excluded from the bundle.
 
-## Repository map
+## Project files
 
-| Location | Purpose |
+| Path | Purpose |
 | --- | --- |
-| `src/reprise/agent.py` | LiveKit / Gemini integration |
-| `src/reprise/coordinator.py` | Revisions, validation, operation ledger and commit barrier |
-| `src/reprise/catalog.py` | Public tool schemas; no benchmark answers |
-| `src/reprise/backend.py` | Unchanged upstream mock functions with asynchronous delays |
-| `src/reprise/evaluation.py` | Offline screening; never imported by the running agent |
-| `tests/` | Cancellation, duplicate actions, provenance and provider contract checks |
-| `docs/RESEARCH.md` | Source-backed rationale and evaluation limits |
-| `third_party/fdb/` | Pinned upstream checkout, downloaded by setup |
+| `src/reprise/agent.py` | LiveKit and Gemini voice session |
+| `src/reprise/coordinator.py` | Corrections, validation, and action ledger |
+| `src/reprise/evaluation.py` | Released-audio runner and local exact scoring |
+| `demo/` | Local dashboard |
+| `tests/` | Controller and provider-contract checks |
+| `docs/RESEARCH.md` | Research basis and evaluation limits |
 
-## License and attribution
-
-Full-Duplex-Bench belongs to its original authors and uses its upstream license (CC BY-NC 4.0 at the pinned revision). This project preserves attribution and does not relicense upstream code or recordings. Samsung support material remains Samsung's; any included support summaries link to the original source. Reprise is a participant prototype, not an official Samsung product.
+Full-Duplex-Bench belongs to its authors and is used under its upstream CC BY-NC 4.0 license. Samsung support material belongs to Samsung. Reprise is a participant prototype, not an official Samsung product.

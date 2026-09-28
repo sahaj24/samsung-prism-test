@@ -26,6 +26,7 @@ paths = [
 paths += sorted((ROOT / "src/reprise").glob("*.py"))
 paths += sorted((ROOT / "tests").glob("*.py"))
 paths += sorted((ROOT / "docs").glob("*.md"))
+paths += sorted((ROOT / "docs").glob("*.svg"))
 paths += sorted((ROOT / "build").glob("*.py"))
 paths += sorted((ROOT / "build").glob("*.mjs"))
 for case in sorted((ROOT / "runs" / RUN).iterdir()):
