@@ -1,0 +1,49 @@
+{
+  "run": "released-v9",
+  "model": "gemini-3.8-live",
+  "passed": 77,
+  "total": 100,
+  "upstream_exact_passed": 77,
+  "organizer_score": null,
+  "source_sha256": "8667af0c539bcb68d0ca11d9c39a2d702c2fa15ce35198f34ca804745fc710cf",
+  "infrastructure_failures": 2,
+  "infrastructure_retries": 5,
+  "failure_reasons": {
+    "wrong_arguments": 13,
+    "wrong_tools": 8,
+    "infrastructure": 2
+  },
+  "by_difficulty": {
+    "easy": {
+      "passed": 30,
+      "total": 36
+    },
+    "hard": {
+      "passed": 20,
+      "total": 30
+    },
+    "medium": {
+      "passed": 27,
+      "total": 34
+    }
+  },
+  "by_domain": {
+    "ecommerce_support": {
+      "passed": 22,
+      "total": 29
+    },
+    "finance_billing": {
+      "passed": 23,
+      "total": 25
+    },
+    "housing_location": {
+      "passed": 18,
+      "total": 26
+    },
+    "travel_identity": {
+      "passed": 14,
+      "total": 20
+    }
+  },
+  "checks": "100 unique inputs; complete case files; matching tool traces; source digest verified"
+}

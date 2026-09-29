@@ -85,6 +85,21 @@ async def test_correction_cancels_prepared_write_before_side_effect(tmp_path):
     assert b.calls[0][1]["source_account"] == "checking"
 
 
+async def test_additive_followup_preserves_pending_action(tmp_path):
+    b = Backend(prepare=.04)
+    c = make(tmp_path, b)
+    c.observe_transcript("Track order GG5")
+    initial_revision = c.revision
+    task = asyncio.create_task(c.execute(CATALOG["track_order"], {"order_id": "GG5"}))
+    await asyncio.sleep(.01)
+    c.speech_started()
+    c.observe_transcript("And also add item X1 to my cart")
+    c.speech_ended()
+    assert c.revision == initial_revision
+    assert (await task)["status"] == "success"
+    assert b.calls == [("track_order", {"order_id": "GG5"})]
+
+
 async def test_committed_write_is_recorded_even_after_correction(tmp_path):
     b = Backend(execute=.04)
     c = make(tmp_path, b)

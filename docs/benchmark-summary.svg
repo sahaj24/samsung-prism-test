@@ -1,26 +1,26 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 365" role="img" aria-labelledby="title description">
-  <title id="title">Reprise local benchmark: 74 of 100 recordings passed</title>
-  <desc id="description">The original exact-match scorer passed 74 of 100 released recordings. Easy: 31 of 36. Medium: 29 of 34. Hard: 14 of 30. This is a local result, not the organizer's official score.</desc>
+  <title id="title">Reprise local benchmark: 77 of 100 recordings passed</title>
+  <desc id="description">Local exact-match passes: 77/100. easy 30/36, medium 27/34, hard 20/30. Organizer score pending.</desc>
   <rect width="780" height="365" rx="20" fill="#FAF8F3"/>
   <rect x="1" y="1" width="778" height="363" rx="19" fill="none" stroke="#E4DED3" stroke-width="2"/>
   <text x="48" y="48" fill="#796D60" font-family="Arial, sans-serif" font-size="14" letter-spacing="2">RELEASED BENCHMARK · LOCAL EXACT MATCH</text>
-  <text x="45" y="111" fill="#30291F" font-family="Georgia, serif" font-size="56">74<tspan fill="#A69A8D" font-size="33"> / 100</tspan></text>
+  <text x="45" y="111" fill="#30291F" font-family="Georgia, serif" font-size="56">77<tspan fill="#A69A8D" font-size="33"> / 100</tspan></text>
   <text x="381" y="105" fill="#6E6257" font-family="Arial, sans-serif" font-size="15">real recorded voice tasks passed</text>
   <rect x="48" y="131" width="684" height="18" rx="9" fill="#E7E0D5"/>
-  <rect x="48" y="131" width="506.16" height="18" rx="9" fill="#6B5948"/>
+  <rect x="48" y="131" width="526.68" height="18" rx="9" fill="#6B5948"/>
   <text x="48" y="190" fill="#30291F" font-family="Georgia, serif" font-size="21">By difficulty</text>
   <text x="48" y="225" fill="#584B3E" font-family="Arial, sans-serif" font-size="15">Easy</text>
   <rect x="215" y="211" width="440" height="10" rx="5" fill="#E7E0D5"/>
-  <rect x="215" y="211" width="378.89" height="10" rx="5" fill="#6B5948"/>
-  <text x="728" y="225" fill="#584B3E" font-family="Arial, sans-serif" font-size="15" text-anchor="end">31 / 36</text>
+  <rect x="215" y="211" width="366.67" height="10" rx="5" fill="#6B5948"/>
+  <text x="728" y="225" fill="#584B3E" font-family="Arial, sans-serif" font-size="15" text-anchor="end">30 / 36</text>
   <text x="48" y="263" fill="#584B3E" font-family="Arial, sans-serif" font-size="15">Medium</text>
   <rect x="215" y="249" width="440" height="10" rx="5" fill="#E7E0D5"/>
-  <rect x="215" y="249" width="375.29" height="10" rx="5" fill="#6B5948"/>
-  <text x="728" y="263" fill="#584B3E" font-family="Arial, sans-serif" font-size="15" text-anchor="end">29 / 34</text>
+  <rect x="215" y="249" width="349.41" height="10" rx="5" fill="#6B5948"/>
+  <text x="728" y="263" fill="#584B3E" font-family="Arial, sans-serif" font-size="15" text-anchor="end">27 / 34</text>
   <text x="48" y="301" fill="#584B3E" font-family="Arial, sans-serif" font-size="15">Hard</text>
   <rect x="215" y="287" width="440" height="10" rx="5" fill="#E7E0D5"/>
-  <rect x="215" y="287" width="205.33" height="10" rx="5" fill="#6B5948"/>
-  <text x="728" y="301" fill="#584B3E" font-family="Arial, sans-serif" font-size="15" text-anchor="end">14 / 30</text>
+  <rect x="215" y="287" width="293.33" height="10" rx="5" fill="#6B5948"/>
+  <text x="728" y="301" fill="#584B3E" font-family="Arial, sans-serif" font-size="15" text-anchor="end">20 / 30</text>
   <line x1="48" y1="323" x2="732" y2="323" stroke="#E4DED3"/>
   <text x="48" y="346" fill="#83776B" font-family="Arial, sans-serif" font-size="12">100 released recordings · same source throughout · organizer score pending</text>
 </svg>

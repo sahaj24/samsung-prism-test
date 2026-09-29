@@ -20,7 +20,7 @@ The updated Word guide requests a LiveKit agent evaluated on Full-Duplex-Bench v
 
 ## Reprise's proposed contribution
 
-A small controller surrounds the audio model. It assigns an input revision to each proposal, validates the argument schema, checks dependent IDs against actual tool results, and waits for speech to settle. It coalesces duplicate operations within the active request. New input cancels obsolete preparation and reads. A mutation already sent to the backend remains recorded even if its explanation is interrupted. No action is silently undone or retried after an ambiguous failure.
+A small controller surrounds the audio model. It assigns an input revision to each proposal, validates the argument schema, checks dependent IDs against actual tool results, and waits for speech to settle. It coalesces duplicate operations within the active request. Explicit corrections cancel obsolete preparation and reads; additive follow-up speech can preserve an earlier requested action. A mutation already sent to the backend remains recorded even if its explanation is interrupted. No action is silently undone or retried after an ambiguous failure.
 
 The combination is an engineering hypothesis. The underlying ideas have precedents above; we make no claim of a new research result or a guaranteed winning score. The useful test is whether it improves completion under the same model and audio inputs without unacceptable delay.
 

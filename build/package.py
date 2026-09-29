@@ -2,16 +2,22 @@
 import hashlib
 import json
 import os
+import shutil
 import zipfile
 from pathlib import Path
 
 from dotenv import dotenv_values
+from audit_benchmark import audit
 
 ROOT = Path(__file__).resolve().parents[1]
 DIST = ROOT / "dist"
 DIST.mkdir(exist_ok=True)
 OUT = DIST / "Reprise_Submission.zip"
-RUN = os.getenv("REPRISE_PACKAGE_RUN", "released-v8")
+RUN = os.getenv("REPRISE_PACKAGE_RUN") or json.loads(
+    (ROOT / "docs/benchmark-results.json").read_text()
+)["run"]
+summary = audit(ROOT / "runs" / RUN, ROOT / "src/reprise")
+(ROOT / "runs" / RUN / "audit.json").write_text(json.dumps(summary, indent=2) + "\n")
 
 paths = [
     ROOT / ".env.example", ROOT / ".gitignore", ROOT / ".python-version",
@@ -20,18 +26,31 @@ paths = [
     ROOT / "demo/package.json", ROOT / "demo/package-lock.json",
     DIST / "Reprise_Theme05_Submission.pptx", DIST / "Reprise_recorded_demo.mp4",
     ROOT / "runs" / RUN / "manifest.json", ROOT / "runs" / RUN / "report.json",
-    ROOT / "runs" / f"{RUN}.log",
+    ROOT / "runs" / RUN / "audit.json", ROOT / "docs/benchmark-results.json",
     ROOT / "runs/extension-question.wav", ROOT / "runs/extension-response.wav",
 ]
 paths += sorted((ROOT / "src/reprise").glob("*.py"))
 paths += sorted((ROOT / "tests").glob("*.py"))
 paths += sorted((ROOT / "docs").glob("*.md"))
 paths += sorted((ROOT / "docs").glob("*.svg"))
+paths += sorted(path for path in (ROOT / "evidence").glob("*/*.json")
+                if path.parent.name != RUN)
 paths += sorted((ROOT / "build").glob("*.py"))
 paths += sorted((ROOT / "build").glob("*.mjs"))
 for case in sorted((ROOT / "runs" / RUN).iterdir()):
-    if case.is_dir():
+    if case.is_dir() and (case / "result_reprise.json").exists():
         paths += [case / "events.jsonl", case / "result_reprise.json", case / "client.log"]
+        paths += sorted(case.glob("client-attempt*.log"))
+        result = json.loads((case / "result_reprise.json").read_text())
+        for index, attempt in enumerate(result["attempts"]):
+            events = ROOT / "runs" / attempt["room"] / "events.jsonl"
+            if events.exists():
+                exported = case / f"events-attempt{index}.jsonl"
+                shutil.copyfile(events, exported)
+                paths.append(exported)
+run_log = ROOT / "runs" / f"{RUN}.log"
+if run_log.exists():
+    paths.append(run_log)
 upstream_score = ROOT / "runs" / RUN / "upstream_exact_report.json"
 if upstream_score.exists():
     paths.append(upstream_score)
@@ -50,7 +69,8 @@ secrets = [value.encode() for name, value in dotenv_values(ROOT / ".env.local").
            if value and (name.endswith(("KEY", "SECRET")) or name == "LIVEKIT_URL")
            and len(value) >= 8]
 checksums = {}
-with zipfile.ZipFile(OUT, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=7) as bundle:
+temporary = OUT.with_suffix(".tmp")
+with zipfile.ZipFile(temporary, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=7) as bundle:
     for path in paths:
         data = path.read_bytes()
         if any(value in data for value in secrets):
@@ -70,11 +90,12 @@ with zipfile.ZipFile(OUT, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=7
         checksums[name] = hashlib.sha256(data).hexdigest()
     bundle.writestr("Reprise/SHA256SUMS.json", json.dumps(checksums, indent=2))
 
-with zipfile.ZipFile(OUT) as bundle:
+with zipfile.ZipFile(temporary) as bundle:
     names = bundle.namelist()
     if len(names) != len(set(names)):
         raise RuntimeError("Duplicate archive paths")
     if bundle.testzip():
         raise RuntimeError("Archive integrity error")
+temporary.replace(OUT)
 print(json.dumps({"package": str(OUT), "files": len(paths),
                   "bytes": OUT.stat().st_size, "evidence_run": RUN}, indent=2))

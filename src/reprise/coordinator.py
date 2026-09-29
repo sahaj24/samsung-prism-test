@@ -51,6 +51,12 @@ def canonical(text: str):
     return re.sub(r"[^\w]", "", text.casefold())
 
 
+CORRECTION = re.compile(
+    r"\b(?:actually|instead|rather|never mind|changed my mind|scratch that|wait)\b",
+    re.IGNORECASE,
+)
+
+
 class Coordinator:
     def __init__(self, backend: Backend, trace: Trace, settings: Settings):
         self.backend, self.trace, self.settings = backend, trace, settings
@@ -98,13 +104,20 @@ class Coordinator:
             self.results = {}
             self.transcript = ""
             self.active_request = True
+            changed_intent = True
+        else:
+            previous = self._speech_text
+            added = text[len(previous):] if previous and text.casefold().startswith(previous.casefold()) else text
+            changed_intent = bool(CORRECTION.search(added))
         self._speech_text = text
         self.transcript = text
         self.last_change = time.monotonic()
-        self.revision += 1
-        self.trace.event("intent_revised", revision=self.revision,
-                         transaction=self.transaction, text=text, is_final=is_final)
-        if self.settings.policy == "guarded":
+        if changed_intent:
+            self.revision += 1
+        self.trace.event("intent_revised" if changed_intent else "intent_extended",
+                         revision=self.revision, transaction=self.transaction,
+                         text=text, is_final=is_final)
+        if changed_intent and self.settings.policy == "guarded":
             for op in self.operations.values():
                 if op.task and not op.task.done() and not (op.writes and op.dispatched):
                     op.task.cancel()
@@ -238,8 +251,8 @@ class Coordinator:
         self._pending_proposals[sequence] = spec.name
         try:
             await self._settle(revision, spec.writes)
-            if interrupted and interrupted():
-                raise Superseded("The originating speech turn was interrupted.")
+            # New speech can extend the request without revoking an earlier action.
+            # Only an explicit intent revision above cancels pending work.
             if self.settings.policy == "guarded":
                 self._check_references(spec, args)
             signature = hashlib.sha256(json.dumps([self.transaction, spec.name, args],

@@ -13,7 +13,7 @@ class Settings:
     policy: str = "guarded"
     settle_ms: int = 1000
     write_settle_ms: int = 900
-    gate_timeout_s: float = 12.0
+    gate_timeout_s: float = 30.0
     tool_timeout_s: float = 20.0
     latency_profile: str = "instant"
     mode: str = "benchmark"
