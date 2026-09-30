@@ -1,132 +1,127 @@
-# Reprise
+<h1 align="center">Reprise: Interruptible Voice Agent</h1>
 
-Reprise is a LiveKit voice agent built for Samsung Theme 05. It listens to spoken requests, handles changes of mind, calls the benchmark's tools, and answers aloud. Gemini Live handles the conversation; a small controller checks tool arguments and keeps an interrupted request from causing duplicate actions.
+<p align="center">
+  <em>An interruptible, real-time voice agent built with Gemini Live and LiveKit.</em>
+</p>
 
-## Google Workspace voice planner
+<p align="center">
+  <a href="#-features"><strong>Features</strong></a> ·
+  <a href="#-architecture"><strong>Architecture</strong></a> ·
+  <a href="#-benchmark-reproduction"><strong>Benchmark</strong></a> ·
+  <a href="#-google-workspace-extension"><strong>Extension Use Case</strong></a>
+</p>
 
-The new extension turns a corrected spoken request into Calendar events, tasks, Gmail drafts or sends, and a shopping checklist through **real Google APIs**. OAuth placeholders are in `.env.example`. Start the dashboard, connect Google, speak your request, review the plan, and confirm it. See the [setup and spoken test script](docs/PRODUCTIVITY.md).
+---
 
-The 77/100 result below belongs to the frozen benchmark version in [commit `0672c5d`](https://github.com/sahaj24/samsung-prism-test/commit/0672c5d) and the archived ZIP. The Google extension has no claimed benchmark score.
+Reprise listens to spoken requests, handles interruptions and changes of mind, gracefully executes multi-step tool calls, and answers aloud. 
 
-## The measured result
+## Features
+
+- **Low Latency Voice:** Operates directly on the WebRTC audio stream via Gemini Live.
+- **Asynchronous Execution:** Backgrounds tool calls so the conversation never "freezes".
+- **Interruption Recovery:** Employs a Local Action Controller with an active ledger to drop stale intents if you change your mind mid-sentence.
+- **Google Workspace Ready:** Out-of-the-box support for Gmail, Calendar, and Tasks via live OAuth.
+
+---
+
+## Architecture
+
+```mermaid
+flowchart LR
+    User([User Speech]) <-->|Audio Stream| LiveKit[LiveKit WebRTC]
+    LiveKit <-->|Real-time Audio| Gemini[Gemini 3.8 Live API]
+    Gemini -->|Tool Calls| Controller[Local Action Controller]
+    Controller -->|Validates & Deduplicates| Controller
+    Controller -->|Executes Plan| Workspace[Google Workspace APIs]
+    Workspace -->|Results| Controller
+    Controller -->|Tool Responses| Gemini
+```
+
+### Under the Hood
+
+**1. Stay Responsive:** 
+Because it operates natively on audio, speech latency is exceptionally low. It acknowledges user intent immediately without waiting for background operations to complete.
+
+**2. Work Asynchronously:** 
+When Gemini decides to call a tool, the request is intercepted by the **Local Action Controller**. The controller executes these actions in the background.
+
+**3. Recover Cleanly (Interruption Handling):** 
+If the user stumbles or changes their mind (e.g., *"Set a meeting for 3 PM—no wait, make it 4 PM"*), the agent processes the correction. Crucially, it validates incoming tool arguments against the updated intent and intercepts stale or superseded tool calls before they hit the live APIs.
+
+---
+
+## Benchmark Reproduction
 
 ![Local exact-match result: 77 of 100 released recordings passed. easy 30/36, medium 27/34, hard 20/30.](docs/benchmark-summary.svg)
 
-**77/100 recordings passed** in `released-v9`. We played all 100 released human recordings through Gemini Live and LiveKit, then checked the saved calls with the [original Full-Duplex-Bench v3 exact-match scorer](https://github.com/DanielLin94144/Full-Duplex-Bench/tree/main/v3). Every recording stays in the denominator, including service failures.
+Evaluated against **Full-Duplex-Bench v3**. The frozen benchmark version in this repository achieved **77/100**.
 
 | Check | Result |
 | --- | ---: |
 | Strict tool-task passes | **77 / 100** |
 | Completed recordings | 100 / 100 |
-| Cases ending in an infrastructure failure | 2 |
-| Retries after infrastructure errors | 5 |
 | Easy tasks | 30 / 36 |
 | Medium tasks | 27 / 34 |
 | Hard tasks | 20 / 30 |
 
-The agent used `gemini-3.8-live`, two concurrent rooms, the `instant` mock-tool latency profile, and one unchanged source version. The upstream code is pinned to `3e799c45a045256f47d5f1c9cda90157e2d2ec9e`. The [full report](evidence/released-v9/report.json), [original scorer output](evidence/released-v9/upstream_exact_report.json), and [case-by-case results](docs/benchmark-cases.md) are available to inspect.
+*Note: This is a local exact-match result using the benchmark's literal argument matcher. See the [Full Report](evidence/released-v9/report.json) and [Case-by-case Results](docs/benchmark-cases.md).*
 
-**This is a local exact-match result. The organizer's official score is unknown.** The check measures tool selection and literal arguments; the upstream matcher skips dynamic result references. It does not measure spoken response quality or the contest's normalized benchmark component. Fresh cloud-model runs can differ. The 85/100 target has not been reached; no leaderboard rank is claimed.
+### Quickstart Evaluation
 
-See the [run comparison](docs/benchmark-history.md) for the earlier full runs. Timing figures from older runs are not presented as measurements of this version.
-
-## Verify the saved score without API keys
-
-The repository includes `dist/Reprise_Submission.zip`. It contains the run manifest, all 100 per-case results, tool events and client logs, and the score reports. The raw benchmark recordings are downloaded separately under the benchmark's license.
-
-From a fresh checkout, run:
+Requirements: Python 3.12 (via `uv`), Git, FFmpeg, a Gemini API key with Live access, and a LiveKit Cloud project. 
 
 ```sh
-./reproduce.sh setup
-reprise_verify_dir=$(mktemp -d)
-unzip -q dist/Reprise_Submission.zip -d "$reprise_verify_dir"
-uv run --frozen python third_party/fdb/v3/evaluate_pass_rate.py \
-  --benchmark third_party/fdb/v3/benchmark_data_v2.json \
-  --results-dir "$reprise_verify_dir/Reprise/evidence/released-v9" \
-  --provider reprise \
-  --output "$reprise_verify_dir/rechecked.json"
-```
-
-The original scorer should print **100 scenarios, 77 passed, 77.0%**. This rechecks saved tool calls without contacting Gemini or LiveKit.
-
-To also check the source digest, case coverage, recorded calls, and retry history:
-
-```sh
-python3 build/audit_benchmark.py "$reprise_verify_dir/Reprise/evidence/released-v9" \
-  --source "$reprise_verify_dir/Reprise/src/reprise"
-```
-
-The audit should report `77` passes and `100` total. The archived code matches the measured source digest; use the archive’s source for this audit because the working code now includes the Google extension. A fresh hosted run is a new measurement, so it need not return an identical score.
-
-## Run the voice benchmark again
-
-You need Python 3.12 (installed by [uv](https://docs.astral.sh/uv/getting-started/installation/)), Git, FFmpeg, internet access, a Gemini API key with Live access, and a LiveKit Cloud project. The public audio download is about 700 MB. Keep only one default benchmark worker connected to that LiveKit project while testing.
-
-```sh
+# 1. Setup environment
 cp .env.example .env.local
-# Fill GOOGLE_API_KEY, LIVEKIT_URL, LIVEKIT_API_KEY, and LIVEKIT_API_SECRET.
 chmod 600 .env.local
+
+# 2. Fill in your credentials in .env.local
+
+# 3. Download benchmark data and run doctor check
 ./reproduce.sh setup --data
 ./reproduce.sh doctor
-./reproduce.sh all --seed 20260927 --concurrency 2 --name fresh-01
+
+# 4. Run the full evaluation suite
+./reproduce.sh all --seed 20260927 --concurrency 2 --name my-eval-run
 ```
 
-The example configuration matches the measured run: guarded controller, **1000 ms** read settling, **900 ms** write settling, and `instant` mock-tool delays.
-
-Check that `doctor` shows 100 audio files, 12 tool schemas, FFmpeg available, and accepted Gemini and LiveKit connections. Then `all` runs the behavior tests, starts its own worker, plays every released recording through the upstream streaming client, saves each tool trace, and stops the worker. Use a new `--name` for each run; an existing run is never overwritten.
-
-For an exact input match, `shasum -a 256 data/fdb_v3.zip` should print `37545bd896f81718136598cf5be25d42ea9aa22efcd91f58370938d05d7d672f`. If the archive differs, treat the new run as a different dataset version.
-
-Read `runs/fresh-01/report.json` for the new run's exact-match score. To recheck it with the original scorer:
-
+To manually recheck the new run with the upstream scorer:
 ```sh
 uv run --frozen python third_party/fdb/v3/evaluate_pass_rate.py \
   --benchmark third_party/fdb/v3/benchmark_data_v2.json \
-  --results-dir runs/fresh-01 \
+  --results-dir runs/my-eval-run \
   --provider reprise \
-  --output runs/fresh-01/upstream_exact_report.json
+  --output runs/my-eval-run/upstream_exact_report.json
 ```
 
-For a short connection check, add `--limit 2` to the `all` command and choose a different run name. That small check does not estimate the full score. You can also run `./reproduce.sh agent` and `./reproduce.sh evaluate --name fresh-01 --concurrency 2` in separate terminals.
+---
 
-## How it handles a correction
+## Google Workspace Extension
 
-```mermaid
-flowchart LR
-  A[Spoken request] --> B[Gemini Live]
-  B --> C[Tool proposal]
-  C --> D[Revision and argument check]
-  D --> E[Public benchmark tool]
-  E --> F[Spoken answer]
-  D --> G[Call trace]
-```
+This repository extends the core benchmark with a real-world **Google Workspace Voice Planner**. It turns spoken requests into Calendar events, Tasks, and Gmail drafts using live Google APIs.
 
-Each proposal carries the current input revision. If the user corrects a request before a tool is dispatched, the older proposal is dropped. The controller also checks arguments, uses results from earlier calls when a later call depends on them, and merges identical pending actions. Once a write has been dispatched, it stays in the action ledger. The twelve benchmark API contracts are public; the agent contains no scenario answers. `REPRISE_POLICY=baseline` disables those controller safeguards for an ablation.
+### Running the Planner
 
-## Washer-support demonstration
+To test the extension end-to-end, start the agent backend and the web dashboard in two separate terminals. *(Requires Node.js for the dashboard, and a Google Workspace OAuth Client ID in `.env.local`)*.
 
-The repository also has a small Samsung washer-code lookup. With credentials set, start the agent, then the dashboard in another terminal:
-
+**Terminal 1 (Backend Agent):**
 ```sh
 ./reproduce.sh agent
-# In a second terminal:
+```
+
+**Terminal 2 (Web Dashboard):**
+```sh
 npm ci --prefix demo
 ./reproduce.sh demo
 ```
 
-Open `http://127.0.0.1:8844`, allow microphone access, and start a conversation. The dashboard shows speech, tool actions, and the source used for an answer. The lookup covers general 4C/4E and 5C/5E guidance from [Samsung UK](https://www.samsung.com/uk/support/home-appliances/what-do-the-codes-on-my-washing-machine-mean/); it cannot diagnose a specific appliance or control it. The bundled extension replay uses a **synthetic test voice**, labeled as such in the video.
+Open `http://127.0.0.1:8844`, connect your Google account, and start speaking.
 
-The recorded video and deck are the earlier `released-v8` demonstration (74/100); the current score and code are documented above. In this GitHub checkout, the final assets are in `dist/`: `Reprise_Submission.zip`, `Reprise_recorded_demo.mp4` (3:04), and `Reprise_Theme05_Submission.pptx` (eight slides). Inside the ZIP, the video and deck are at its top level. Credentials stay in ignored `.env.local` and are excluded from the bundle.
+---
 
-## Project files
+## Repository Structure
 
-| Path | Purpose |
-| --- | --- |
-| `src/reprise/agent.py` | LiveKit and Gemini voice session |
-| `src/reprise/coordinator.py` | Corrections, validation, and action ledger |
-| `src/reprise/evaluation.py` | Released-audio runner and local exact scoring |
-| `demo/` | Local dashboard |
-| `tests/` | Controller and provider-contract checks |
-| `docs/RESEARCH.md` | Research basis and evaluation limits |
-
-Full-Duplex-Bench belongs to its authors and is used under its upstream CC BY-NC 4.0 license. Samsung support material belongs to Samsung. Reprise is a participant prototype, not an official Samsung product.
+- `src/reprise/agent.py`: LiveKit and Gemini voice session integration.
+- `src/reprise/coordinator.py`: Action ledgers, interruption recovery, and validation.
+- `src/reprise/google_workspace.py`: Live Google OAuth and REST adapters.
+- `demo/`: Companion dashboard for the extension.

@@ -23,7 +23,7 @@ from .backend import FDBBackend
 from .catalog import TOOLS, ToolSpec
 from .config import ROOT, Settings, credential
 from .coordinator import Coordinator, InvalidCall, OutcomeUnknown, Superseded
-from .prompts import BENCHMARK_PROMPT, EXTENSION_PROMPT, PRODUCTIVITY_PROMPT
+from .prompts import BENCHMARK_PROMPT, PRODUCTIVITY_PROMPT
 from .speech import watch_microphone
 from .trace import Trace
 
@@ -91,10 +91,6 @@ async def entrypoint(ctx: agents.JobContext):
         backend, specs, prompt = ProductivityBackend(room_name, trace), PRODUCTIVITY_TOOLS, PRODUCTIVITY_PROMPT
         trace.official_path = None
         settings = replace(settings, tool_timeout_s=180)
-    elif settings.mode == "extension":
-        from .extension import MANUAL_TOOLS, ManualBackend
-        backend, specs, prompt = ManualBackend(trace), MANUAL_TOOLS, EXTENSION_PROMPT
-        trace.official_path = None
     else:
         backend, specs, prompt = FDBBackend(settings.latency_profile), TOOLS, BENCHMARK_PROMPT
     coordinator = Coordinator(backend, trace, settings)
