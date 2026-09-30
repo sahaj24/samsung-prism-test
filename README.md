@@ -15,7 +15,7 @@
 
 Reprise listens to spoken requests, handles interruptions and changes of mind, gracefully executes multi-step tool calls, and answers aloud. 
 
-## ✨ Features
+## Features
 
 - **Low Latency Voice:** Operates directly on the WebRTC audio stream via Gemini Live.
 - **Asynchronous Execution:** Backgrounds tool calls so the conversation never "freezes".
@@ -24,7 +24,7 @@ Reprise listens to spoken requests, handles interruptions and changes of mind, g
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ```mermaid
 flowchart LR
@@ -50,7 +50,7 @@ If the user stumbles or changes their mind (e.g., *"Set a meeting for 3 PM—no 
 
 ---
 
-## 📊 Benchmark Reproduction
+## Benchmark Reproduction
 
 ![Local exact-match result: 77 of 100 released recordings passed. easy 30/36, medium 27/34, hard 20/30.](docs/benchmark-summary.svg)
 
@@ -96,7 +96,7 @@ uv run --frozen python third_party/fdb/v3/evaluate_pass_rate.py \
 
 ---
 
-## 🛠️ Google Workspace Extension
+## Google Workspace Extension
 
 This repository extends the core benchmark with a real-world **Google Workspace Voice Planner**. It turns spoken requests into Calendar events, Tasks, and Gmail drafts using live Google APIs.
 
@@ -119,7 +119,7 @@ Open `http://127.0.0.1:8844`, connect your Google account, and start speaking.
 
 ---
 
-## 📁 Repository Structure
+## Repository Structure
 
 - `src/reprise/agent.py`: LiveKit and Gemini voice session integration.
 - `src/reprise/coordinator.py`: Action ledgers, interruption recovery, and validation.
