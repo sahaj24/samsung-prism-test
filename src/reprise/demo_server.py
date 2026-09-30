@@ -53,7 +53,7 @@ async def livekit_bundle():
 
 
 @app.post("/session")
-async def session(mode: Literal["productivity", "extension", "benchmark"] = "productivity"):
+async def session(mode: Literal["productivity", "benchmark"] = "productivity"):
     Settings.from_env()
     import os
 
