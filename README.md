@@ -125,3 +125,12 @@ Open `http://127.0.0.1:8844`, connect your Google account, and start speaking.
 - `src/reprise/coordinator.py`: Action ledgers, interruption recovery, and validation.
 - `src/reprise/google_workspace.py`: Live Google OAuth and REST adapters.
 - `demo/`: Companion dashboard for the extension.
+
+---
+
+## Hackathon Submission
+
+- **Presentation:** [SRMIST_Caffeine_Submission.pdf](./SRMIST_Caffeine_Submission.pdf)
+- **AI Disclosure:** [LangAI3.0_AI_Disclosure.pdf](./LangAI3.0_AI_Disclosure.pdf)
+- **Demo Video:** [Google Drive Folder](https://drive.google.com/drive/folders/1mjF5j6U3PB3IDDfdNSuwk13CCXXn9_JC?usp=sharing)
+
