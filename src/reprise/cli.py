@@ -111,7 +111,7 @@ def main():
     elif args.command == "demo":
         import uvicorn
         uvicorn.run("reprise.demo_server:app", host="127.0.0.1",
-                    port=int(os.getenv("REPRISE_DEMO_PORT", "8844")))
+                    port=int(os.getenv("REPRISE_DEMO_PORT", "8844")), access_log=False)
     elif args.command == "test":
         raise SystemExit(subprocess.call([sys.executable, "-m", "pytest", "-q"], cwd=ROOT))
     elif args.command == "evaluate":

@@ -2,6 +2,12 @@
 
 Reprise is a LiveKit voice agent built for Samsung Theme 05. It listens to spoken requests, handles changes of mind, calls the benchmark's tools, and answers aloud. Gemini Live handles the conversation; a small controller checks tool arguments and keeps an interrupted request from causing duplicate actions.
 
+## Google Workspace voice planner
+
+The new extension turns a corrected spoken request into Calendar events, tasks, Gmail drafts or sends, and a shopping checklist through **real Google APIs**. OAuth placeholders are in `.env.example`. Start the dashboard, connect Google, speak your request, review the plan, and confirm it. See the [setup and spoken test script](docs/PRODUCTIVITY.md).
+
+The 77/100 result below belongs to the frozen benchmark version in [commit `0672c5d`](https://github.com/sahaj24/samsung-prism-test/commit/0672c5d) and the archived ZIP. The Google extension has no claimed benchmark score.
+
 ## The measured result
 
 ![Local exact-match result: 77 of 100 released recordings passed. easy 30/36, medium 27/34, hard 20/30.](docs/benchmark-summary.svg)
@@ -46,10 +52,11 @@ The original scorer should print **100 scenarios, 77 passed, 77.0%**. This reche
 To also check the source digest, case coverage, recorded calls, and retry history:
 
 ```sh
-python3 build/audit_benchmark.py "$reprise_verify_dir/Reprise/evidence/released-v9"
+python3 build/audit_benchmark.py "$reprise_verify_dir/Reprise/evidence/released-v9" \
+  --source "$reprise_verify_dir/Reprise/src/reprise"
 ```
 
-The audit should report `77` passes and `100` total. The packaged code must match the measured source digest. A fresh hosted run is a new measurement, so it need not return an identical score.
+The audit should report `77` passes and `100` total. The archived code matches the measured source digest; use the archive’s source for this audit because the working code now includes the Google extension. A fresh hosted run is a new measurement, so it need not return an identical score.
 
 ## Run the voice benchmark again
 

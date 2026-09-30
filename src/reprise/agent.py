@@ -23,7 +23,7 @@ from .backend import FDBBackend
 from .catalog import TOOLS, ToolSpec
 from .config import ROOT, Settings, credential
 from .coordinator import Coordinator, InvalidCall, OutcomeUnknown, Superseded
-from .prompts import BENCHMARK_PROMPT, EXTENSION_PROMPT
+from .prompts import BENCHMARK_PROMPT, EXTENSION_PROMPT, PRODUCTIVITY_PROMPT
 from .speech import watch_microphone
 from .trace import Trace
 
@@ -82,11 +82,16 @@ async def entrypoint(ctx: agents.JobContext):
         room_metadata = json.loads(ctx.room.metadata or "{}")
     except json.JSONDecodeError:
         room_metadata = {}
-    if room_name.startswith("reprise-demo-") and room_metadata.get("reprise_mode") == "extension":
-        settings = replace(settings, mode="extension")
+    if room_name.startswith("reprise-demo-") and room_metadata.get("reprise_mode") in {"extension", "productivity", "benchmark"}:
+        settings = replace(settings, mode=room_metadata["reprise_mode"])
     directory = ROOT / "runs" / room_name
     trace = Trace(room_name, directory, Path("/tmp/agent_tool_calls.log"))
-    if settings.mode == "extension":
+    if settings.mode == "productivity":
+        from .productivity import PRODUCTIVITY_TOOLS, ProductivityBackend
+        backend, specs, prompt = ProductivityBackend(room_name, trace), PRODUCTIVITY_TOOLS, PRODUCTIVITY_PROMPT
+        trace.official_path = None
+        settings = replace(settings, tool_timeout_s=180)
+    elif settings.mode == "extension":
         from .extension import MANUAL_TOOLS, ManualBackend
         backend, specs, prompt = ManualBackend(trace), MANUAL_TOOLS, EXTENSION_PROMPT
         trace.official_path = None
@@ -98,11 +103,13 @@ async def entrypoint(ctx: agents.JobContext):
                 mode=settings.mode)
     session = AgentSession(llm=build_model(settings),
                            tools=[make_tool(s, coordinator) for s in specs],
-                           max_tool_steps=8)
+                           max_tool_steps=12 if settings.mode == "productivity" else 8)
     monitor_task = None
 
     @session.on("user_input_transcribed")
     def transcript(event):
+        if settings.mode == "productivity":
+            backend.observe_input(event.transcript)
         coordinator.observe_transcript(event.transcript, is_final=event.is_final)
 
     @session.on("conversation_item_added")
@@ -111,6 +118,8 @@ async def entrypoint(ctx: agents.JobContext):
         if hasattr(item, "role"):
             if item.role == "user":
                 coordinator.remember_user_message(item.text_content)
+                if settings.mode == "productivity":
+                    backend.observe_input(item.text_content)
             trace.event("conversation_item", role=item.role, text=item.text_content,
                         interrupted=getattr(item, "interrupted", False))
 
@@ -130,6 +139,8 @@ async def entrypoint(ctx: agents.JobContext):
             monitor_task.cancel()
             await asyncio.gather(monitor_task, return_exceptions=True)
         await coordinator.close()
+        if settings.mode == "productivity":
+            await backend.close()
         (directory / "snapshot.json").write_text(json.dumps(coordinator.snapshot(), indent=2))
         trace.event("session_closed")
 

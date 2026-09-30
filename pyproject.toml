@@ -17,6 +17,7 @@ dependencies = [
   "numpy>=1.26",
   "soundfile>=0.13",
   "gdown>=5.2",
+  "httpx>=0.28,<1",
 ]
 
 [dependency-groups]

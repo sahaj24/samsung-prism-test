@@ -23,3 +23,7 @@ Theme 5_Guide.pdf
 Theme05_Participant_Guide_UPDATED_FBD.docx
 cooke
 deploy_gpt.py
+
+.google-workspace-token.json
+.google-token-*
+client_secret*.json
