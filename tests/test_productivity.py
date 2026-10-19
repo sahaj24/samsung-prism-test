@@ -18,6 +18,7 @@ def backend(tmp_path, handler):
         client_id="client",
         client_secret="secret",
         token_file=tmp_path / "tokens.json",
+        task_list_id="test-list",
         shopping_list_id="shopping",
     )
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
@@ -82,7 +83,7 @@ async def test_all_four_services_use_google_payloads_and_return_real_response_id
     prepared = await b.call("prepare_plan", request_plan())
     plan_id = prepared["plan"]["plan_id"]
     assert (await b.call("execute_plan", {"plan_id": plan_id}))["status"] == "approval_required"
-    assert not calls
+    assert len(calls) == 3  # Personal actions execute; sending waits.
     b.observe_input("Confirm the plan.")
     results = await asyncio.gather(
         *(b.call("execute_plan", {"plan_id": plan_id}) for _ in range(2))
@@ -110,6 +111,7 @@ async def test_timeout_persists_unknown_and_never_resends_email(tmp_path):
     b, client = backend(tmp_path, handler)
     args = {"title": "Email", "messages": request_plan()["messages"]}
     plan = (await b.call("prepare_plan", args))["plan"]
+    b.observe_assistant("Send the email Meeting time to alex@example.com?")
     b.observe_input("yes, do it")
     result = await b.call("execute_plan", {"plan_id": plan["plan_id"]})
     assert result["plan"]["status"] == "partial"
@@ -119,7 +121,7 @@ async def test_timeout_persists_unknown_and_never_resends_email(tmp_path):
     await client.aclose()
 
 
-async def test_correction_invalidates_old_plan_and_requires_new_confirmation(tmp_path):
+async def test_correction_invalidates_each_unexecuted_plan(tmp_path):
     calls = []
     b, client = backend(
         tmp_path, lambda r: calls.append(r) or httpx.Response(200, json={"id": "id"})
@@ -134,13 +136,11 @@ async def test_correction_invalidates_old_plan_and_requires_new_confirmation(tmp
     assert (await b.call("execute_plan", {"plan_id": first["plan_id"]}))["plan"][
         "status"
     ] == "superseded"
-    assert (await b.call("execute_plan", {"plan_id": second["plan_id"]}))[
-        "status"
-    ] == "approval_required"
+    assert second["status"] == "prepared"
     b.observe_input("yes but change the time")
     assert (await b.call("execute_plan", {"plan_id": second["plan_id"]}))[
-        "status"
-    ] == "approval_required"
+        "plan"
+    ]["status"] == "superseded"
     assert not calls
     with pytest.raises(ValueError):
         b.store.approve("different-room", second["plan_id"])
@@ -190,8 +190,9 @@ async def test_missing_google_credentials_never_create_success(tmp_path):
 async def test_local_connection_routes_reject_bad_state_and_cross_room_access(monkeypatch):
     from reprise.demo_server import app, issued, oauth_states
 
-    monkeypatch.delenv("GOOGLE_OAUTH_CLIENT_ID", raising=False)
-    monkeypatch.delenv("GOOGLE_OAUTH_CLIENT_SECRET", raising=False)
+    # Explicit empty values isolate this missing-config test from local dotenv files.
+    monkeypatch.setenv("GOOGLE_OAUTH_CLIENT_ID", "")
+    monkeypatch.setenv("GOOGLE_OAUTH_CLIENT_SECRET", "")
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://127.0.0.1:8844"
     ) as client:

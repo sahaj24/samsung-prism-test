@@ -37,6 +37,9 @@ def attach_session_events(session, coordinator):
             interrupted=getattr(item, "interrupted", False),
         )
         if item.role == "assistant":
+            observer = getattr(coordinator.backend, "observe_assistant", None)
+            if observer:
+                observer(item.text_content, interrupted=getattr(item, "interrupted", False))
             speech = getattr(session, "current_speech", None)
             response_id = getattr(speech, "id", None) or coordinator.last_response_id
             context = coordinator.response_contexts.get(response_id, {})
@@ -61,10 +64,26 @@ def attach_session_events(session, coordinator):
     @session.on("error")
     def error(event):
         trace.event("session_error", error_type=type(event.error).__name__)
+        if getattr(event.error, "type", None) == "realtime_model_error":
+            trace.event("gemini_connection", state=(
+                "reconnecting" if getattr(event.error, "recoverable", False) else "disconnected"
+            ))
+
+    @session.on("close")
+    def closed(event):
+        trace.event("gemini_connection", state="disconnected")
 
     @session.on("metrics_collected")
     def metrics(event):
-        trace.event("model_metrics", metrics=_values(event.metrics))
+        values = _values(event.metrics)
+        trace.event("model_metrics", metrics=values)
+        # SDK emits this zero-usage metric after the Gemini Live setup handshake.
+        # Agent readiness or a LiveKit room join alone does not prove this connection.
+        if (values and values.get("type") == "realtime_model_metrics"
+                and values.get("request_id") == ""
+                and values.get("connection_reused") is False
+                and values.get("acquire_time") is not None):
+            trace.event("gemini_connection", state="connected")
 
     @session.on("session_usage_updated")
     def usage(event):

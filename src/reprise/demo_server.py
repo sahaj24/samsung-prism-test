@@ -16,7 +16,7 @@ from livekit import api
 
 from .config import ROOT, Settings
 from .google_workspace import GoogleAPIError, GoogleWorkspace
-from .productivity import PlanStore
+from .productivity import PlanStore, pending_confirmation
 
 app = FastAPI(title="Reprise local demo", docs_url=None, redoc_url=None)
 DEMO = ROOT / "demo"
@@ -84,9 +84,16 @@ async def events(room: str, after: int = 0):
     path: Path = ROOT / "runs" / room / "events.jsonl"
     if not path.exists():
         return {"events": [], "cursor": 0}
-    lines = path.read_text().splitlines()
+    # A polling reader can observe the writer midway through its last append.
+    # Advance only past newline-terminated records, so that record is retried.
+    lines = path.read_text().split("\n")[:-1]
     allowed = {"conversation_item", "agent_state", "tool_executed", "tool_superseded",
-               "tool_rejected", "manual_found", "session_error", "plan_updated"}
+               "tool_rejected", "session_error", "plan_updated",
+               "transcript_received", "speech_started", "speech_ended", "intent_revised",
+               "tool_raw_proposed", "tool_proposed", "tool_dispatch", "tool_validation_failed",
+               "tool_outcome_unknown", "tool_caller_detached", "stale_result_suppressed",
+               "duplicate_coalesced", "approval_revoked", "approval_checked",
+               "external_api_started", "external_api_completed", "session_closed", "agent_ready", "gemini_connection", "workspace_items"}
     selected = [json.loads(line) for line in lines[after:] if line]
     return {"events": [e for e in selected if e.get("event") in allowed], "cursor": len(lines)}
 
@@ -143,7 +150,9 @@ def check_room(room):
 async def latest_plan(room: str):
     check_room(room)
     try:
-        return {"plan": PlanStore().get(room)}
+        plan = PlanStore().get(room)
+        plan["requires_confirmation"] = pending_confirmation(plan)
+        return {"plan": plan}
     except ValueError:
         return {"plan": None}
 
@@ -153,6 +162,7 @@ async def approve_plan(room: str, plan_id: str):
     check_room(room)
     try:
         plan = PlanStore().approve(room, plan_id)
+        plan["requires_confirmation"] = pending_confirmation(plan)
     except ValueError as exc:
         raise HTTPException(409, str(exc)) from None
     return {"plan": plan}

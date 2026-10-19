@@ -1,3 +1,4 @@
+import hashlib
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -5,6 +6,14 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def source_digest():
+    digest = hashlib.sha256()
+    for path in sorted((ROOT / "src/reprise").glob("*.py")):
+        digest.update(path.name.encode())
+        digest.update(path.read_bytes())
+    return digest.hexdigest()
 
 
 @dataclass(frozen=True)
@@ -21,6 +30,7 @@ class Settings:
     @classmethod
     def from_env(cls):
         load_dotenv(ROOT / ".env.local", override=False)
+        load_dotenv(ROOT / ".env", override=False)
         return cls(
             model=os.getenv("GEMINI_MODEL", "gemini-3.8-live"),
             policy=os.getenv("REPRISE_POLICY", "guarded"),
@@ -33,6 +43,7 @@ class Settings:
 
 def credential():
     load_dotenv(ROOT / ".env.local", override=False)
+    load_dotenv(ROOT / ".env", override=False)
     key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY", "")
     mode = os.getenv("GEMINI_AUTH_MODE", "auto")
     if mode == "auto":

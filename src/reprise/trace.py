@@ -9,7 +9,7 @@ from typing import Any
 
 _context = ContextVar("reprise_trace_context", default=None)
 _SECRETS = {"authorization", "access_token", "refresh_token", "id_token", "api_key",
-            "client_secret", "cookie", "password", "code_verifier"}
+            "client_secret", "cookie", "password", "code_verifier", "mail_body"}
 
 
 def safe_payload(value, depth=0):

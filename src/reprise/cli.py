@@ -7,6 +7,7 @@ import subprocess
 import sys
 import time
 import zipfile
+from pathlib import Path
 
 from .backend import FDB_COMMIT
 from .config import ROOT, Settings, credential
@@ -92,6 +93,7 @@ def main():
     all_cmd.add_argument("--name")
     all_cmd.add_argument("--sample", action="append", help="Run a named released recording; repeat to select several")
     all_cmd.add_argument("--infrastructure-retries", type=int, choices=range(4), default=2)
+    all_cmd.add_argument("--model", help="Gemini Live model; never changes provider automatically")
     evaluate = commands.add_parser("evaluate", help="Provisional exact-match screening; start agent first")
     evaluate.add_argument("--dataset", default=str(ROOT/"data/fdb_v3_data_released"))
     evaluate.add_argument("--limit", type=int, default=0)
@@ -100,7 +102,19 @@ def main():
     evaluate.add_argument("--name")
     evaluate.add_argument("--sample", action="append", help="Run a named released recording; repeat to select several")
     evaluate.add_argument("--infrastructure-retries", type=int, choices=range(4), default=2)
+    evaluate.add_argument("--model", help="Expected Gemini Live model of the separately started worker")
+    score = commands.add_parser("score", help="Score saved results; offline unless --use-llm is explicitly set")
+    score.add_argument("results_dir", type=Path)
+    score.add_argument("--provider", default="reprise")
+    score.add_argument("--benchmark", type=Path)
+    score.add_argument("--output", type=Path)
+    score.add_argument("--use-llm", action="store_true", help="Explicitly enable paid-capable upstream gpt-4o judging; requires OPENAI_API_KEY")
+    metrics = commands.add_parser("metrics", help="Summarize a local events.jsonl without model/API calls")
+    metrics.add_argument("events", type=Path)
+    metrics.add_argument("--output", type=Path)
     args = parser.parse_args()
+    if getattr(args, "model", None):
+        os.environ["GEMINI_MODEL"] = args.model
     Settings.from_env()
     if args.command == "setup":
         setup(args.data)
@@ -117,8 +131,23 @@ def main():
     elif args.command == "evaluate":
         from .evaluation import run_suite
         asyncio.run(run_suite(args))
+    elif args.command == "score":
+        from .evaluation import score_results
+        report = score_results(args.results_dir, provider=args.provider, benchmark=args.benchmark,
+                               use_llm=args.use_llm)
+        output = args.output or args.results_dir / ("evaluation_semantic.json" if args.use_llm else "evaluation_exact.json")
+        output.write_text(json.dumps(report, indent=2))
+        print(json.dumps({k: v for k, v in report.items() if k != "results"}, indent=2))
+    elif args.command == "metrics":
+        from .metrics import summarize_events
+        events = [json.loads(line) for line in args.events.read_text().splitlines() if line.strip()]
+        report = summarize_events(events)
+        if args.output:
+            args.output.write_text(json.dumps(report, indent=2))
+        print(json.dumps(report, indent=2))
     elif args.command == "all":
         from .evaluation import run_suite
+        os.environ["REPRISE_MODE"] = "benchmark"
         setup(data=True)
         asyncio.run(doctor())
         worker_log = ROOT / "runs/one-command-worker.log"
@@ -137,14 +166,7 @@ def main():
                 else:
                     raise TimeoutError("Agent did not register within 90 seconds")
                 args.dataset = str(ROOT / "data/fdb_v3_data_released")
-                output = asyncio.run(run_suite(args))
-                if os.getenv("OPENAI_API_KEY"):
-                    benchmark = ROOT / "third_party/fdb/v3"
-                    subprocess.run([sys.executable, str(benchmark/"evaluate_pass_rate.py"),
-                        "--benchmark", str(benchmark/"benchmark_data_v2.json"),
-                        "--results-dir", str(output), "--provider", "reprise",
-                        "--output", str(output/"upstream_semantic_pass_rate.json"),
-                        "--use-llm"], check=True, cwd=ROOT)
+                asyncio.run(run_suite(args))
             finally:
                 worker.terminate()
                 try:

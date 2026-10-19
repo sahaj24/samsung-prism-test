@@ -2,7 +2,7 @@ import asyncio
 import json
 import os
 import time
-from dataclasses import replace
+from dataclasses import asdict, replace
 from pathlib import Path
 
 from google.genai import types
@@ -21,7 +21,7 @@ from livekit.plugins import google
 
 from .backend import FDBBackend
 from .catalog import TOOLS, ToolSpec
-from .config import ROOT, Settings, credential
+from .config import ROOT, Settings, credential, source_digest
 from .coordinator import Coordinator, InvalidCall, OutcomeUnknown, Superseded
 from .prompts import BENCHMARK_PROMPT, PRODUCTIVITY_PROMPT
 from .session_events import attach_session_events
@@ -107,7 +107,9 @@ async def entrypoint(ctx: agents.JobContext):
     coordinator = Coordinator(backend, trace, settings)
     trace.event("session_started", model=settings.model, policy=settings.policy,
                 settle_ms=settings.settle_ms, write_settle_ms=settings.write_settle_ms,
-                mode=settings.mode)
+                mode=settings.mode, settings=asdict(settings), source_sha256=source_digest(),
+                vad_silence_ms=int(os.getenv("REPRISE_VAD_SILENCE_MS", "650")),
+                audio_clock_origin="not synchronized to client stream")
     session = AgentSession(llm=build_model(settings),
                            tools=[make_tool(s, coordinator) for s in specs],
                            max_tool_steps=12 if settings.mode == "productivity" else 8)
