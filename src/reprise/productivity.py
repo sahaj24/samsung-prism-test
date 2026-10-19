@@ -7,6 +7,7 @@ import os
 import re
 import sqlite3
 import time
+import uuid
 from contextlib import contextmanager
 from datetime import date, datetime
 from pathlib import Path
@@ -14,7 +15,7 @@ from zoneinfo import ZoneInfo
 
 from .catalog import S, ToolSpec
 from .config import ROOT
-from .google_workspace import GoogleAPIError, GoogleWorkspace
+from .google_workspace import GoogleAPIError, GoogleWorkspace, MutationRevoked
 
 
 def records(properties, required):
@@ -36,6 +37,7 @@ PRODUCTIVITY_TOOLS = [
         "Get the actual current date, timezone and Google connection status before resolving relative dates.",
         {},
         (),
+        cache_result=False,
     ),
     ToolSpec(
         "prepare_plan",
@@ -58,6 +60,7 @@ PRODUCTIVITY_TOOLS = [
             "shopping": records({"item": S, "quantity": S, "notes": S}, ["item"]),
         },
         ("title",),
+        cache_result=False,
     ),
     ToolSpec(
         "execute_plan",
@@ -65,12 +68,14 @@ PRODUCTIVITY_TOOLS = [
         {"plan_id": S},
         ("plan_id",),
         True,
+        cache_result=False,
     ),
     ToolSpec(
         "get_plan",
         "Read the plan and its actual execution status, including Google IDs.",
         {"plan_id": S},
         ("plan_id",),
+        cache_result=False,
     ),
 ]
 
@@ -119,7 +124,7 @@ class PlanStore:
         value["status"] = row[0]
         return value
 
-    def prepare(self, room, title, actions):
+    def prepare(self, room, title, actions, revision=0):
         plan_id = hashlib.sha256(
             json.dumps([room, title, actions], sort_keys=True).encode()
         ).hexdigest()[:24]
@@ -135,6 +140,7 @@ class PlanStore:
             "title": title,
             "status": "prepared",
             "approved": False,
+            "revision": revision,
             "actions": [{**a, "status": "pending"} for a in actions],
         }
         with self.connect() as db:
@@ -147,14 +153,43 @@ class PlanStore:
             )
         return value
 
+    def invalidate(self, room, revision):
+        """Revoke uncommitted plans atomically, including dashboard approvals."""
+        invalidated = []
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            rows = db.execute(
+                "SELECT document,status FROM plans WHERE room=? AND status IN ('prepared','running')", (room,)
+            ).fetchall()
+            for document, status in rows:
+                value = json.loads(document)
+                value.update(approved=False, revoked_at_revision=revision)
+                if status == "prepared":
+                    value["status"] = "superseded"
+                else:
+                    value["cancel_requested"] = True
+                db.execute("UPDATE plans SET status=?,document=? WHERE id=?",
+                           (value["status"], json.dumps(value), value["plan_id"]))
+                invalidated.append(value)
+        return invalidated
+
     def save(self, value):
         with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute("SELECT status,document FROM plans WHERE id=? AND room=?",
+                             (value["plan_id"], value["room"])).fetchone()
+            if not row:
+                return False
+            current = json.loads(row[1])
+            if current.get("cancel_requested"):
+                value.update(cancel_requested=True, approved=False)
             db.execute(
                 "UPDATE plans SET status=?,document=? WHERE id=? AND room=?",
                 (value["status"], json.dumps(value), value["plan_id"], value["room"]),
             )
+            return True
 
-    def approve(self, room, plan_id):
+    def approve(self, room, plan_id, source="dashboard"):
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute(
@@ -164,6 +199,9 @@ class PlanStore:
                 raise ValueError("Only the current prepared plan can be approved.")
             value = json.loads(row[0])
             value["approved"] = True
+            value["approved_at_revision"] = value.get("revision", 0)
+            value["approval"] = {"id": uuid.uuid4().hex, "at": time.time(),
+                                 "revision": value.get("revision", 0), "source": source}
             db.execute("UPDATE plans SET document=? WHERE id=?", (json.dumps(value), plan_id))
         return value
 
@@ -176,7 +214,7 @@ class PlanStore:
             if not row or row[0] != "prepared":
                 return None
             value = json.loads(row[1])
-            if not value["approved"]:
+            if not value["approved"] or value.get("approved_at_revision") != value.get("revision", 0):
                 return None
             value["status"] = "running"
             db.execute(
@@ -228,18 +266,37 @@ def validate_plan(args, time_zone):
 
 
 class ProductivityBackend:
+    requires_final_input = True
+
     def __init__(self, room, trace=None, google=None, store=None):
         self.room, self.trace = room, trace
-        self.google = google or GoogleWorkspace()
+        self.google = google or GoogleWorkspace(trace=trace)
+        if trace:
+            self.google.trace = trace
         self.store = store or PlanStore()
         self.latest_input = ""
         self.input_counter = 0
         self.prepared_after = {}
+        self.revision = 0
+        self.input_final = True
 
-    def observe_input(self, text):
+    def observe_input(self, text, *, is_final=True, revision=None):
         if text and text.strip():
             self.latest_input = text.strip()
-            self.input_counter += 1
+            self.input_final = is_final
+            self.revision = self.revision if revision is None else revision
+            # Interim text may revoke approval, but can never grant it. Any
+            # substantive follow-up requires a fresh review; acknowledgements do not.
+            if not APPROVAL.fullmatch(text) and text.strip().casefold().strip('.!') not in {
+                "mhm", "uhhuh", "okay", "ok", "right", "yeah", "thanks"
+            }:
+                invalidated = self.store.invalidate(self.room, self.revision)
+                if self.trace:
+                    for plan in invalidated:
+                        self.trace.event("approval_revoked", plan_id=plan["plan_id"],
+                                         approval=plan.get("approval"), status=plan["status"])
+            if is_final:
+                self.input_counter += 1
 
     def publish(self, plan):
         if self.trace:
@@ -264,7 +321,7 @@ class ProductivityBackend:
                 }
             if name == "prepare_plan":
                 actions = validate_plan(args, self.google.config.time_zone)
-                plan = self.store.prepare(self.room, args["title"], actions)
+                plan = self.store.prepare(self.room, args["title"], actions, self.revision)
                 self.prepared_after[plan["plan_id"]] = self.input_counter
                 return self.publish(plan)
             if name == "get_plan":
@@ -278,18 +335,19 @@ class ProductivityBackend:
     async def execute(self, plan_id):
         plan = self.store.get(self.room, plan_id)
         if plan["status"] != "prepared":
-            return self.publish(plan)
-        if self.input_counter > self.prepared_after.get(
+            return self.execution_result(plan)
+        if self.input_final and self.input_counter > self.prepared_after.get(
             plan_id, self.input_counter
         ) and APPROVAL.fullmatch(self.latest_input):
-            self.store.approve(self.room, plan_id)
-            plan["approved"] = True
-        if not plan["approved"]:
+            plan = self.store.approve(self.room, plan_id, source="voice")
+        if not plan["approved"] or not self.input_final:
             return {
                 "status": "approval_required",
                 "message": "Review this plan and say 'confirm the plan', or press Confirm plan.",
                 "plan": plan,
             }
+        if self.trace:
+            self.trace.event("approval_checked", plan_id=plan_id, approval=plan.get("approval"))
         if not self.google.status()["connected"]:
             return {
                 "status": "error",
@@ -298,40 +356,45 @@ class ProductivityBackend:
             }
         plan = self.store.claim(self.room, plan_id)
         if plan is None:
-            return self.publish(self.store.get(self.room, plan_id))
+            return self.execution_result(self.store.get(self.room, plan_id))
+        if self.trace:
+            with self.trace.bind(plan_id=plan_id):
+                return await self._execute_claimed(plan)
+        return await self._execute_claimed(plan)
+
+    def execution_result(self, plan):
+        result = self.publish(plan)
+        result["status"] = "success" if plan["status"] == "completed" else plan["status"]
+        return result
+
+    async def _execute_claimed(self, plan):
+        plan_id = plan["plan_id"]
         self.publish(plan)
         for index, action in enumerate(plan["actions"]):
-            action["status"] = "running"
-            self.store.save(plan)
+            current = self.store.get(self.room, plan_id)
+            if current.get("cancel_requested"):
+                break
+            operation_id = hashlib.sha256(f"{plan_id}:{index}".encode()).hexdigest()[:32]
+            action.update(status="running", operation_id=operation_id, started_at=time.time())
+            action_started = time.monotonic()
+            if not self.store.save(plan):
+                return self.execution_result(self.store.get(self.room, plan_id))
             self.publish(plan)
             try:
-                if action["kind"] == "calendar":
-                    operation_id = hashlib.sha256(f"{plan_id}:{index}".encode()).hexdigest()[:32]
-                    result = await self.google.create_event(action, operation_id)
-                elif action["kind"] == "task":
-                    result = await self.google.create_task(action)
-                elif action["kind"] == "email":
-                    result = await self.google.create_email(action)
-                else:
-                    listing = self.google.config.shopping_list_id or self.store.preference(
-                        "shopping_list_id"
-                    )
-                    if not listing:
-                        created = await self.google.create_task_list("Reprise Shopping")
-                        listing = self.store.preference("shopping_list_id", created["id"])
-                    result = await self.google.create_task(
-                        {
-                            "title": " ".join(
-                                filter(None, [action.get("quantity"), action["item"]])
-                            ),
-                            "notes": action.get("notes", ""),
-                        },
-                        listing,
-                    )
+                with self.google.authorize_writes(lambda: self._authorize_action(plan)):
+                    if self.trace:
+                        with self.trace.bind(operation_id=operation_id, action_index=index):
+                            result = await self._send_action(plan, action, operation_id)
+                    else:
+                        result = await self._send_action(plan, action, operation_id)
+                if not isinstance(result.get("id"), str) or not result["id"].strip():
+                    raise ValueError("Missing Google receipt ID")
                 action.update(
                     status="completed",
                     google_id=result["id"],
                     url=result.get("htmlLink", result.get("webViewLink", "")),
+                    receipt={"id": result["id"], "etag": result.get("etag"),
+                             **result.get("_http", {}), "received_at": time.time()},
                 )
                 if action["kind"] == "email":
                     action["delivery_result"] = (
@@ -343,25 +406,70 @@ class ProductivityBackend:
                     error="Execution was interrupted; verify this action in Google before retrying.",
                 )
                 plan["status"] = "partial"
+                for remaining in plan["actions"][index + 1:]:
+                    remaining["status"] = "not_executed"
                 raise
+            except MutationRevoked as exc:
+                action.update(status="not_executed", error=str(exc))
+                break
             except GoogleAPIError as exc:
-                action.update(status="unknown" if exc.uncertain else "failed", error=str(exc))
+                action.update(status="unknown" if exc.uncertain else "failed", error=str(exc),
+                              error_receipt={"status_code": exc.status_code, "request_id": exc.request_id,
+                                             "uncertain": exc.uncertain})
                 if exc.uncertain:
                     break
-            except (KeyError, ValueError):
+            except (KeyError, ValueError, TypeError, AttributeError):
                 action.update(
                     status="unknown",
                     error="Google returned an incomplete response. Check Google before retrying.",
                 )
                 break
+            except Exception as exc:
+                action.update(status="unknown", error=f"Execution failed ({type(exc).__name__}); verify in Google before retrying.")
+                break
             finally:
+                action["finished_at"] = time.time()
+                action["duration_s"] = time.monotonic() - action_started
                 self.store.save(plan)
                 self.publish(plan)
+        current = self.store.get(self.room, plan_id)
+        if current["status"] == "needs_review":
+            return self.execution_result(current)
+        for action in plan["actions"]:
+            if action["status"] == "pending":
+                action["status"] = "not_executed"
         plan["status"] = (
             "completed" if all(a["status"] == "completed" for a in plan["actions"]) else "partial"
         )
         self.store.save(plan)
-        return self.publish(plan)
+        return self.execution_result(plan)
+
+    def _authorize_action(self, plan):
+        current = self.store.get(self.room, plan["plan_id"])
+        if (current["status"] != "running" or current.get("cancel_requested")
+            or not current.get("approved")):
+            raise MutationRevoked("Approval or execution ownership changed before dispatch; no action was sent.")
+
+    async def _send_action(self, plan, action, operation_id):
+        if action["kind"] == "calendar":
+            return await self.google.create_event(action, operation_id)
+        if action["kind"] == "task":
+            return await self.google.create_task(action)
+        if action["kind"] == "email":
+            return await self.google.create_email(action)
+        listing = self.google.config.shopping_list_id or self.store.preference("shopping_list_id")
+        if not listing:
+            created = await self.google.create_task_list("Reprise Shopping")
+            if not isinstance(created.get("id"), str) or not created["id"].strip():
+                raise ValueError("Missing shopping list receipt")
+            action["list_receipt"] = {"id": created["id"], **created.get("_http", {})}
+            listing = self.store.preference("shopping_list_id", created["id"])
+        action["target_list_id"] = listing
+        if not self.store.save(plan):
+            raise ValueError("Execution ownership expired")
+        return await self.google.create_task(
+            {"title": " ".join(filter(None, [action.get("quantity"), action["item"]])),
+             "notes": action.get("notes", "")}, listing)
 
     async def close(self):
         await self.google.close()

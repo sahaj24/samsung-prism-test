@@ -11,6 +11,9 @@ class ToolSpec:
     required: tuple[str, ...]
     writes: bool = False
     references: dict[str, tuple[str, str, str]] = field(default_factory=dict)
+    cache_result: bool = True
+    retained_slots: tuple[str, ...] = ()
+    identifiers: dict[str, tuple[str, ...]] = field(default_factory=dict)
 
     @property
     def schema(self):
@@ -30,14 +33,16 @@ TOOLS = [
     ToolSpec("search_flights", "Search flights using the final corrected destination and date. "
              "Use month and numeric day without an ordinal suffix, e.g. November 1. "
              "Never invent a year.",
-             {"destination": S, "date": S}, ("destination", "date")),
+             {"destination": S, "date": S}, ("destination", "date"),
+             retained_slots=("destination", "date")),
     ToolSpec("book_flight", "Book only when the user asks to book. Use a returned flight ID "
              "when available. Search first when the user supplied a destination and date.",
              {"passenger_name": S, "flight_id": S}, ("passenger_name",), True,
              {"flight_id": ("search_flights", "flights", "flight_id")}),
     ToolSpec("update_identity_doc", "Update the requested document with its final corrected "
              "number. Preserve letters, digits, and leading zeros. Do not use superseded numbers.",
-             {"doc_type": S, "doc_number": S}, ("doc_type", "doc_number"), True),
+             {"doc_type": S, "doc_number": S}, ("doc_type", "doc_number"), True,
+             identifiers={"doc_number": ("passport", "license", "licence", "document")} ),
     ToolSpec("get_card_benefits", "Retrieve benefits for the card type the user requests.",
              {"card_type": S}, ("card_type",)),
     ToolSpec("get_exchange_rate", "Convert the final amount between the requested currencies. "
@@ -54,7 +59,8 @@ TOOLS = [
              "A returned listing identifier may name an origin for a follow-up commute when "
              "the mock result has no street address.",
              {"city": S, "bedrooms": I, "max_price": N,
-              "pets_allowed": {"type": "boolean"}}, ()),
+              "pets_allowed": {"type": "boolean"}}, (),
+             retained_slots=("city", "bedrooms", "max_price", "pets_allowed")),
     ToolSpec("calculate_commute", "Calculate a commute using the requested origin, destination, "
              "and transport mode. Do not reverse origin and destination.",
              {"origin_address": S, "destination_address": S, "mode": S},
@@ -67,15 +73,17 @@ TOOLS = [
              ("filter_name", "value"), True),
     ToolSpec("track_order", "Retrieve the status of the final requested order identifier. "
              "Preserve letters and leading zeros; ignore an identifier the user replaced.",
-             {"order_id": S}, ("order_id",)),
+             {"order_id": S}, ("order_id",), identifiers={"order_id": ("order", "parcel")}),
     ToolSpec("search_products", "Search products using the requested query, optional category and "
              "price ceiling. If the user says under, below, or up to a price, include "
              "max_price even when an action depends on the result. Only include a ceiling "
              "if supplied by the user.",
-             {"query": S, "category": S, "max_price": N}, ("query",)),
+             {"query": S, "category": S, "max_price": N}, ("query",),
+             retained_slots=("query", "category", "max_price")),
     ToolSpec("add_to_cart", "Add the requested quantity only when asked. Obtain product_id "
              "from search_products or an explicit user-provided identifier; never invent it.",
              {"product_id": S, "quantity": I}, ("product_id", "quantity"), True,
-             {"product_id": ("search_products", "products", "product_id")}),
+             {"product_id": ("search_products", "products", "product_id")},
+             identifiers={"product_id": ("product", "item")}),
 ]
 CATALOG = {t.name: t for t in TOOLS}

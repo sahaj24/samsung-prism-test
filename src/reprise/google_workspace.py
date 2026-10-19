@@ -6,6 +6,9 @@ import json
 import os
 import tempfile
 import time
+import uuid
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from email.message import EmailMessage
 from pathlib import Path
@@ -21,11 +24,18 @@ SCOPES = [
     "https://www.googleapis.com/auth/gmail.compose",
 ]
 
+_write_authorization = ContextVar("reprise_google_write_authorization", default=None)
+
 
 class GoogleAPIError(Exception):
-    def __init__(self, message, uncertain=False):
+    def __init__(self, message, uncertain=False, status_code=None, request_id=None):
         super().__init__(message)
         self.uncertain = uncertain
+        self.status_code, self.request_id = status_code, request_id
+
+
+class MutationRevoked(GoogleAPIError):
+    """Authorization was revoked before a resource mutation was dispatched."""
 
 
 @dataclass(frozen=True)
@@ -63,11 +73,20 @@ class WorkspaceConfig:
 
 
 class GoogleWorkspace:
-    def __init__(self, config=None, client=None):
+    def __init__(self, config=None, client=None, trace=None):
         self.config = config or WorkspaceConfig.from_env()
         self.client = client or httpx.AsyncClient(timeout=15)
         self.owns_client = client is None
         self._token_lock = asyncio.Lock()
+        self.trace = trace
+
+    @contextmanager
+    def authorize_writes(self, check):
+        token = _write_authorization.set(check)
+        try:
+            yield
+        finally:
+            _write_authorization.reset(token)
 
     def tokens(self):
         try:
@@ -149,7 +168,13 @@ class GoogleWorkspace:
             raise GoogleAPIError(
                 "Google authorization was rejected. Reconnect your Google account."
             )
-        return response.json()
+        try:
+            values = response.json()
+            if not isinstance(values, dict):
+                raise ValueError("Not an object")
+            return values
+        except ValueError:
+            raise GoogleAPIError("Google authorization returned an invalid response; no action was sent.") from None
 
     async def access_token(self):
         async with self._token_lock:
@@ -167,7 +192,36 @@ class GoogleWorkspace:
             return tokens["access_token"]
 
     async def request(self, method, url, *, body=None, params=None):
+        if not self.trace:
+            return await self._request(method, url, body=body, params=params)
+        # Never trace authorization headers, OAuth bodies, or raw error strings.
+        with self.trace.bind(api_request_id=uuid.uuid4().hex):
+            start = time.monotonic()
+            self.trace.event("external_api_started", method=method, endpoint=url.split("?")[0])
+            try:
+                result = await self._request(method, url, body=body, params=params)
+                self.trace.event("external_api_completed", outcome="success",
+                                 google_id=result.get("id"),
+                                 status_code=result.get("_http", {}).get("status_code"),
+                                 provider_request_id=result.get("_http", {}).get("request_id"),
+                                 duration_s=time.monotonic() - start)
+                return result
+            except GoogleAPIError as exc:
+                self.trace.event("external_api_completed", outcome="unknown" if exc.uncertain else "rejected",
+                                 status_code=exc.status_code, provider_request_id=exc.request_id,
+                                 duration_s=time.monotonic() - start, error_type=type(exc).__name__)
+                raise
+            except asyncio.CancelledError:
+                self.trace.event("external_api_completed", outcome="unknown" if method != "GET" else "cancelled",
+                                 duration_s=time.monotonic() - start)
+                raise
+
+    async def _request(self, method, url, *, body=None, params=None):
         token = await self.access_token()
+        if method != "GET" and (check := _write_authorization.get()):
+            # Token refresh/lock acquisition may have awaited user corrections.
+            # Recheck immediately before handing the mutation to HTTPX.
+            check()
         try:
             response = await self.client.request(
                 method, url, json=body, params=params, headers={"Authorization": "Bearer " + token}
@@ -186,8 +240,19 @@ class GoogleWorkspace:
                 f"Google API rejected the action (HTTP {response.status_code} {reason}).",
                 uncertain=method != "GET"
                 and (response.status_code >= 500 or response.status_code == 408),
+                status_code=response.status_code,
+                request_id=response.headers.get("x-request-id"),
             )
-        return response.json()
+        try:
+            values = response.json()
+            if not isinstance(values, dict):
+                raise ValueError("Not an object")
+        except ValueError:
+            raise GoogleAPIError("Google returned an invalid response. Verify the action before retrying.",
+                                 uncertain=method != "GET") from None
+        values["_http"] = {"status_code": response.status_code,
+                           "request_id": response.headers.get("x-request-id")}
+        return values
 
     async def create_event(self, action, operation_id):
         calendar = quote(self.config.calendar_id, safe="")

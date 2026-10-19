@@ -24,6 +24,7 @@ from .catalog import TOOLS, ToolSpec
 from .config import ROOT, Settings, credential
 from .coordinator import Coordinator, InvalidCall, OutcomeUnknown, Superseded
 from .prompts import BENCHMARK_PROMPT, PRODUCTIVITY_PROMPT
+from .session_events import attach_session_events
 from .speech import watch_microphone
 from .trace import Trace
 
@@ -34,14 +35,24 @@ def make_tool(spec: ToolSpec, coordinator: Coordinator):
             return await coordinator.execute(
                 spec, raw_arguments,
                 interrupted=lambda: context.speech_handle.interrupted,
+                provider_call_id=context.function_call.call_id,
+                response_id=context.speech_handle.id,
             )
-        except Superseded as exc:
-            coordinator.trace.event("tool_superseded", function=spec.name, reason=str(exc))
+        except Superseded:
             raise StopResponse() from None
         except (InvalidCall, OutcomeUnknown) as exc:
             coordinator.trace.event("tool_rejected", function=spec.name, reason=str(exc))
             raise ToolError(str(exc)) from None
     return llm.function_tool(invoke, raw_schema=spec.declaration())
+
+
+def make_text_input_handler(coordinator):
+    default_handler = room_io.TextInputOptions().text_input_cb
+    async def handle(session, event):
+        # Observe before interruption/generation, using the same safety boundary as audio.
+        coordinator.observe_transcript(event.text, is_final=True, source="text")
+        await default_handler(session, event)
+    return handle
 
 
 def build_model(settings: Settings):
@@ -102,33 +113,7 @@ async def entrypoint(ctx: agents.JobContext):
                            max_tool_steps=12 if settings.mode == "productivity" else 8)
     monitor_task = None
 
-    @session.on("user_input_transcribed")
-    def transcript(event):
-        if settings.mode == "productivity":
-            backend.observe_input(event.transcript)
-        coordinator.observe_transcript(event.transcript, is_final=event.is_final)
-
-    @session.on("conversation_item_added")
-    def conversation(event):
-        item = event.item
-        if hasattr(item, "role"):
-            if item.role == "user":
-                coordinator.remember_user_message(item.text_content)
-                if settings.mode == "productivity":
-                    backend.observe_input(item.text_content)
-            trace.event("conversation_item", role=item.role, text=item.text_content,
-                        interrupted=getattr(item, "interrupted", False))
-
-    @session.on("agent_state_changed")
-    def agent_state(event):
-        trace.event("agent_state", state=event.new_state)
-        if event.new_state == "listening" and event.old_state == "speaking":
-            coordinator.finish_response()
-
-    @session.on("error")
-    def error(event):
-        # Never persist arbitrary exception strings: provider errors can contain URLs/keys.
-        trace.event("session_error", error_type=type(event.error).__name__)
+    attach_session_events(session, coordinator)
 
     async def shutdown():
         if monitor_task:
@@ -137,13 +122,16 @@ async def entrypoint(ctx: agents.JobContext):
         await coordinator.close()
         if settings.mode == "productivity":
             await backend.close()
-        (directory / "snapshot.json").write_text(json.dumps(coordinator.snapshot(), indent=2))
+        trace.write_snapshot(coordinator.snapshot())
         trace.event("session_closed")
 
     ctx.add_shutdown_callback(shutdown)
     await session.start(
         room=ctx.room, agent=Agent(instructions=prompt),
-        room_options=room_io.RoomOptions(video_input=False),
+        room_options=room_io.RoomOptions(
+            video_input=False,
+            text_input=room_io.TextInputOptions(text_input_cb=make_text_input_handler(coordinator)),
+        ),
     )
     async def monitor_speech():
         try:
