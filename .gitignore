@@ -3,9 +3,7 @@
 !.env.example
 .venv/
 demo/node_modules/
-build/node_modules
-build/video/
-build/slides/
+/build/
 __pycache__/
 *.py[cod]
 .pytest_cache/
@@ -15,10 +13,8 @@ third_party/
 data/
 runs/
 dist/
+/evidence/
 .codex-finalizer/
-build/*.log
-build/whisper-*.wav
-build/verify-*.png
 Theme 5_Guide.pdf
 Theme05_Participant_Guide_UPDATED_FBD.docx
 cooke
@@ -27,3 +23,18 @@ deploy_gpt.py
 .google-workspace-token.json
 .google-token-*
 client_secret*.json
+
+# Historical submission assets remain local and in existing Git history.
+/LangAI3.0_AI_Disclosure.pdf
+/SRMIST_Caffeine_Submission.pdf
+/docs/benchmark-*
+/docs/RESEARCH.md
+
+# Local experiment modules and session notes; not needed by the demo.
+/src/reprise/gemma_benchmark.py
+/src/reprise/gemma_judge.py
+/tests/test_gemma_*.py
+/docs/GEMMA_EVALUATION.md
+/docs/DEMO_PHASE*.md
+/HOLDOUT_HANDOFF.md
+/:memory:.ses

@@ -1,42 +1,44 @@
-# Reprise Architecture & Design
+# Architecture and request lifecycle
 
-This document outlines the core architectural patterns that power Reprise, focusing on how we achieve ultra-low latency while maintaining robust tool execution and graceful interruption recovery.
+Reprise runs a Python LiveKit agent with Gemini Live and a local action controller. The working extension uses real Google Workspace APIs. The browser is plain HTML/CSS/JavaScript; FastAPI serves the page, local control endpoints and a polled event feed. LiveKit carries bidirectional audio and native transcription streams.
 
-## 1. System Overview
+## State ownership
 
-Reprise is built on a streaming architecture that bypasses traditional speech-to-text-to-llm pipelines.
+| Component | Owns |
+| --- | --- |
+| LiveKit/Gemini session | Audio transport, model generation, input/output transcription and SDK speech handles |
+| `Coordinator` | Input/revision state, acoustic activity, proposal order, validation, settlement, cancellation and in-flight tool outcomes |
+| `IntentMemory` | Small room-local, transcript-grounded retained fields for opted-in tools; not a general semantic parser |
+| `ProductivityBackend` / `PlanStore` | Room-scoped durable plans, consent receipts, execution leases, resource ownership and Google receipts |
+| `WorkspaceManagement` | Lookup snapshots, known Task-list IDs, numbered selection groups and focused resources |
+| Google APIs | Actual mailbox, event and task state |
+| Browser | Presentation, session controls and page-local history; it does not infer successful API completion |
 
-- **Audio Transport:** [LiveKit WebRTC](https://livekit.io/) handles the raw bidirectional audio stream, ensuring robust packet delivery, echo cancellation, and network resilience.
-- **Cognitive Engine:** [Gemini 3.8 Live API](https://ai.google.dev/) receives the raw audio stream directly. This allows the model to respond to voice tone and pacing natively.
-- **Action Engine:** The `Local Action Controller` (implemented in `src/reprise/coordinator.py`) manages all tool calling, validation, and side-effects.
+## End-to-end request
 
-## 2. The Local Action Controller
+1. The browser publishes microphone audio to a LiveKit room. The Python agent forwards the track to Gemini Live and subscribes to returned audio for browser playback.
+2. Session hooks observe input transcription/finality and committed conversation items; the acoustic monitor observes user speech activity. Typed messages enter the controller before LiveKit generates the reply.
+3. Input receives identifiers and revision context. Genuine corrections supersede stale uncommitted operations; additive context can retain unaffected work. Assistant speech interruption is tracked separately from intent replacement.
+4. Gemini proposes structured tools. `make_tool` routes each call through the coordinator with provider call and speech-response IDs. The coordinator records raw arguments, validates schema and opted-in identifier constraints, and applies revision/settlement checks.
+5. Async preparation and tool tasks allow the voice session to remain active. Mutations retain proposal ordering/dependencies. Cancellation before dispatch suppresses stale work; a dispatched mutation is shielded from caller detachment and retains its real terminal or uncertain result.
+6. In Workspace mode, `prepare_plan` stages new actions; `prepare_change` or `prepare_resource_change` stages supported changes to saved/looked-up resources. Preparation writes only the local ledger. `execute_plan` applies the deterministic risk policy and claims eligible actions.
+7. Google requests use the connected account. Authorization is checked again after awaited token acquisition and immediately before HTTP mutation. Calendar and Task changes GET the actual resource, verify expected values, use `If-Match`, then read back the outcome. Task-list aliases resolve to actual returned IDs; legacy uncertainty locks remain effective.
+8. Actual results and receipts update the ledger and return to Gemini through the non-blocking tool flow. Old results retain their original revision and can be withheld from current speech. Model acknowledgments and plan preparation do not establish API completion.
+9. Append-only correlated events feed Actions & Status. Native LiveKit streams show live transcript chunks; committed user/assistant items populate Conversation. All visible tool progression comes from backend events.
 
-When Gemini decides to execute a tool (e.g., booking a flight or setting a calendar event), it emits a tool call frame over the websocket. Rather than executing this blindly, Reprise intercepts it using the **Local Action Controller**.
+## Persistence and failure boundaries
 
-### Asynchronous Execution
-If an agent pauses to execute an API call (which can take 1-3 seconds), the conversational flow feels broken and unnatural. 
-To solve this, the Local Action Controller pushes all tool executions to background async tasks. Gemini is immediately told that the action has been dispatched, allowing it to continue speaking to the user (e.g., *"I'm looking that up for you right now..."*) while the real API call completes in the background.
+The coordinator's conversational state is in memory per room. The Workspace SQLite ledger persists claims, known resources and receipts under `runs/`. A restart recovers expired running plans to review/unknown states; it does not resume unsent actions. New conversations look up existing Google resources again rather than reusing another room's selection references.
 
-## 3. Interruption Recovery & The Action Ledger
+Plan leases are 60 seconds and renew every 20 seconds. The productivity tool timeout is 180 seconds. Controller settlement defaults are 1,000 ms and 900 ms for writes; its 30-second gate timeout rejects an unsettled operation rather than granting permission. Gemini VAD silence defaults to 650 ms. These are configuration values, not measured end-to-end latency or permission to execute unfinished speech.
 
-The most complex challenge in real-time voice agents is handling human interruptions. 
-A user might say: *"Create a meeting with John for 3 PM—actually, make it 4 PM."*
+There is no cross-service transaction. A Google timeout after dispatch can leave Outcome unknown. Resource ownership prevents blind retries; `reconcile_plan` performs supported ID-based reads. A lost Task/Gmail creation receipt cannot be resolved by guessing a similar title. Calendar creation has a deterministic operation ID usable for reconciliation.
 
-By the time the user says *"make it 4 PM"*, Gemini may have already emitted the tool call to create a 3 PM meeting. 
+## Modes
 
-### How Reprise Recovers:
-1. **The Ledger:** The Coordinator maintains an active "Ledger" of pending operations.
-2. **Settlement Delay:** Tools that write data (like `book_flight` or `add_to_cart`) are held in a brief "settlement" buffer (configurable via `REPRISE_WRITE_SETTLE_MS`).
-3. **Supersedence:** If the user interrupts and corrects themselves, Gemini immediately sends an updated tool call or cancellation. The Coordinator matches this against the Ledger.
-4. **Interception:** If a stale tool call is found in the buffer, it is gracefully dropped and marked as `Superseded` before it ever reaches the external API.
+- **Productivity:** current Google Workspace tools and prompt; OAuth account writes are real.
+- **Benchmark:** the pinned public FDB mock tool registry and benchmark prompt. Room-local state starts fresh; scenario labels and expected answers are not controller inputs.
 
-This pattern ensures that external state (like a Google Calendar or an E-commerce cart) remains perfectly synchronized with the user's final intent, completely eliminating duplicate or erroneous API calls.
+The local demo chooses mode in room metadata. Workspace implementation changes do not replace the original benchmark tool schemas. Hosted Gemini and LiveKit are required; no local inference GPU is used.
 
-## 4. Google Workspace Extension
-
-The codebase extends the core architecture with a real-world Google Workspace planner.
-
-- **OAuth 2.0:** Managed natively in `demo_server.py`. The agent handles the full OAuth flow, securing a refresh token that is stored locally in `.google-workspace-token.json`.
-- **REST Adapters:** Implemented in `google_workspace.py`, these adapters translate Gemini's generic `ToolSpec` JSON arguments into strict Google API requests (e.g., formatting ISO dates for Google Calendar or parsing Gmail drafts).
-- **Dashboard:** A React/Node.js based dashboard (`demo/`) connects to the Local Action Controller via WebSockets to visually reflect the agent's internal state, providing a transparent view of the Action Ledger as it updates in real-time.
+See [execution safety](HARDENING.md), [Workspace setup](PRODUCTIVITY.md), and [evaluation commands](BENCHMARK.md).
