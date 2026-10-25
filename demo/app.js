@@ -203,10 +203,9 @@ function nextDemo() {
 }
 $('experience').onchange = () => {
   if (activeRoom || room || ($('start').disabled && !demoActive)) { $('experience').value='live'; return; }
-  pauseDemo(); demoActive=$('experience').value==='scripted';callAssistActive=!demoActive&&$('mode').value==='call_assist';showPresentationChannel();
+  pauseDemo(); demoActive=$('experience').value==='scripted';callAssistActive=$('experience').value==='assist';showPresentationChannel();
   currentTranscriptRow?.setAttribute('data-current','false');currentTranscriptRow=null;lastUserRow=null;
-  document.querySelector('main').setAttribute('data-experience',demoActive?'scripted':'live');
-  $('phoneSurface').setAttribute('data-experience',demoActive?'scripted':'live');
+  $('phoneSurface').setAttribute('data-experience',demoActive?'scripted':callAssistActive?'call-assist':'live');
   $('demoControls').hidden=!demoActive; $('demoBadge').hidden=!demoActive; $('voiceConnections').hidden=demoActive;
   $('start').disabled=demoActive; $('planner').disabled=demoActive; $('mode').disabled=demoActive;
   if (demoActive) {
@@ -215,10 +214,10 @@ $('experience').onchange = () => {
     currentPlan=null; $('planCard').hidden=true; $('phoneRevision').hidden=true; $('phoneTranscriptRow').hidden=true;
     $('phoneModality').textContent='Voice assistant'; phone.reset(); showStatus('Not connected');
     service('livekitStatus','disconnected');service('geminiStatus','disconnected');
-    if(callAssistActive){$('planner').value='gemini';$('planner').disabled=true;assistCalendar=null;assistSupersededTime=null;}
+    if(callAssistActive){$('mode').value='call_assist';$('planner').value='gemini';$('mode').disabled=true;$('planner').disabled=true;assistCalendar=null;assistSupersededTime=null;assistCall();}
+    else if($('mode').value==='call_assist')$('mode').value='productivity';
   }
 };
-$('mode').onchange=()=>{callAssistActive=!demoActive&&$('mode').value==='call_assist';if(callAssistActive)$('planner').value='gemini';$('planner').disabled=demoActive||callAssistActive;};
 $('demoWorkflow').onchange = () => {if (demoActive) resetDemo();};
 $('demoRestart').onclick = () => {if (demoActive) resetDemo();};
 $('demoNext').onclick = () => {pauseDemo(); nextDemo();};
@@ -393,7 +392,7 @@ async function finishSession() {
   ['end','mute','speaker','text','send','confirmPlan'].forEach(id => $(id).disabled = true);
   $('start').disabled = false; $('mode').disabled = false; $('planner').disabled = false; $('experience').disabled = false; liveText('user','');
   $('phoneSurface').setAttribute('data-call-connected','false');
-  if(callAssistActive)$('planner').disabled=true;
+  if(callAssistActive){$('mode').disabled=true;$('planner').disabled=true;assistCall();}
   service('livekitStatus','disconnected'); service('geminiStatus','disconnected'); liveText('assistant',''); liveSegments.clear();
   service('localStatus','disconnected'); audioMuted = false; $('speaker').textContent = 'Audio on'; $('speaker').setAttribute('aria-pressed','false'); showStatus('Disconnected'); append({title:'Session ended'}); closing = false;
 }
@@ -566,19 +565,6 @@ $('confirmPlan').onclick = async () => {
     $('planNote').textContent = 'Confirmed';
   } catch (error) {notice(error.message || 'Confirmation failed'); if (currentPlan) renderPlan(currentPlan);}
 };
-const liveControlPairs={liveStart:'start',liveMute:'mute',liveSpeaker:'speaker',liveEnd:'end'};
-function syncLiveControls(){
-  for(const [proxyId,sourceId] of Object.entries(liveControlPairs)){
-    const proxy=$(proxyId),source=$(sourceId);proxy.disabled=source.disabled;
-    if(proxyId==='liveMute')proxy.innerHTML='<span class="secondary-label">'+(muted?'Unmute ':'Mute ')+'</span>mic';
-    else if(proxyId==='liveSpeaker')proxy.innerHTML='<span class="secondary-label">Audio </span>'+(audioMuted?'off':'on');
-  }
-}
-for(const [proxyId,sourceId] of Object.entries(liveControlPairs)){
-  $(proxyId).onclick=()=>{if(!$(sourceId).disabled)$(sourceId).click();};
-  new MutationObserver(syncLiveControls).observe($(sourceId),{attributes:true,childList:true,subtree:true});
-}
-syncLiveControls();
 checkGoogle();
 setInterval(checkGoogle,5000);
 }
