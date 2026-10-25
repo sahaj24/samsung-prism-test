@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 from livekit import api
 
 from .config import ROOT, Settings
+from .call_activation import ACTIVATION_VERSION
 from .google_workspace import GoogleAPIError, GoogleWorkspace
 from .productivity import PlanStore, pending_confirmation
 
@@ -71,7 +72,8 @@ async def livekit_bundle():
 
 @app.post("/session")
 async def session(mode: Literal["productivity", "benchmark", "call_assist"] = "productivity",
-                  planner: Literal["gemini", "local"] = "gemini"):
+                  planner: Literal["gemini", "local"] = "gemini",
+                  presentation: Literal["live", "demo-live"] = "live"):
     Settings.from_env()
     import os
 
@@ -84,6 +86,9 @@ async def session(mode: Literal["productivity", "benchmark", "call_assist"] = "p
             raise HTTPException(400, str(exc)) from None
         if planner != "gemini":
             raise HTTPException(400, "Live Call Assist uses the existing Gemini Live backend")
+
+    if presentation == "demo-live" and planner != "gemini":
+        raise HTTPException(400, "Demo Live requires the realtime Gemini audio session")
 
     if planner == "local":
         if mode != "productivity":
@@ -115,14 +120,15 @@ async def session(mode: Literal["productivity", "benchmark", "call_assist"] = "p
     room = f"reprise-demo-{uuid.uuid4().hex[:14]}"
     async with api.LiveKitAPI() as lk:
         await lk.room.create_room(api.CreateRoomRequest(
-            name=room, empty_timeout=90, metadata=json.dumps({"reprise_mode": mode, **({"workspace_backend": provider} if provider else {})}),
+            name=room, empty_timeout=90, metadata=json.dumps({"reprise_mode": mode, "presentation": presentation, "activation_version": ACTIVATION_VERSION, **({"workspace_backend": provider} if provider else {})}),
         ))
     token = (api.AccessToken(key, secret).with_identity(f"demo-{uuid.uuid4().hex[:8]}")
              .with_name("Demo visitor").with_grants(api.VideoGrants(
                  room_join=True, room=room, can_publish=True, can_subscribe=True,
              )).to_jwt())
     issued.add(room)
-    return {"url": url, "room": room, "token": token, **({"workspace_backend": provider, "owner_confirmation_required": True} if provider else {})}
+    return {"url": url, "room": room, "token": token, "presentation": presentation,
+            "activation_version": ACTIVATION_VERSION, **({"workspace_backend": provider, "owner_confirmation_required": True} if provider else {})}
 
 
 @app.get("/events/{room}")
@@ -143,7 +149,7 @@ async def events(room: str, after: int = 0):
                "tool_raw_proposed", "tool_proposed", "tool_dispatch", "tool_validation_failed",
                "tool_outcome_unknown", "tool_caller_detached", "stale_result_suppressed",
                "duplicate_coalesced", "approval_revoked", "approval_checked",
-               "external_api_started", "external_api_completed", "session_closed", "agent_ready", "gemini_connection", "workspace_items", "local_connection", "local_model_metrics", "mock_calendar_receipt", "assistant_claim_unverified"}
+               "external_api_started", "external_api_completed", "session_closed", "agent_ready", "gemini_connection", "workspace_items", "local_connection", "local_model_metrics", "mock_calendar_receipt", "assistant_claim_unverified", "call_activation"}
     selected = [json.loads(line) for line in lines[after:] if line]
     return {"events": [e for e in selected if e.get("event") in allowed], "cursor": len(lines)}
 

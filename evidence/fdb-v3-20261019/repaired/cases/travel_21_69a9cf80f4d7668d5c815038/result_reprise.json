@@ -1,0 +1,397 @@
+{
+  "sample": "travel_21_69a9cf80f4d7668d5c815038",
+  "room": "original-vs-astra-20261019-gemma26-B-i096-r0-000-a0",
+  "id": "travel_21",
+  "attempts": [
+    {
+      "room": "original-vs-astra-20261019-gemma26-B-i096-r0-000-a0",
+      "infrastructure_error": null,
+      "trace_closed": false,
+      "configuration_errors": []
+    }
+  ],
+  "example_id": "travel_21",
+  "domain": "travel_identity",
+  "difficulty": "hard",
+  "actual_tool_calls": [
+    {
+      "function": "update_identity_doc",
+      "args": {
+        "doc_number": "V-77",
+        "doc_type": "visa"
+      },
+      "timestamp_start": 1792353259.3662999,
+      "timestamp_end": 1792353259.3663454,
+      "outcome": "success",
+      "duration_s": 4.556799967758707e-05,
+      "proposal_id": "610cdf9daffa4492b22264f48315627a",
+      "provider_call_id": "call_2816974",
+      "request_id": "967ab3686aeb4921aeb0b0f2c69e4bdc:1",
+      "trace_id": "967ab3686aeb4921aeb0b0f2c69e4bdc"
+    },
+    {
+      "function": "search_flights",
+      "args": {
+        "destination": "Las Vegas",
+        "date": "August 8"
+      },
+      "timestamp_start": 1792353260.0775552,
+      "timestamp_end": 1792353260.0776117,
+      "outcome": "success",
+      "duration_s": 5.626499978461652e-05,
+      "proposal_id": "a5958d43efc84e3ea59676a369992943",
+      "provider_call_id": "call_2816970",
+      "request_id": "967ab3686aeb4921aeb0b0f2c69e4bdc:1",
+      "trace_id": "967ab3686aeb4921aeb0b0f2c69e4bdc"
+    },
+    {
+      "function": "book_flight",
+      "args": {
+        "flight_id": "FL123",
+        "passenger_name": "Quinn Davis"
+      },
+      "timestamp_start": 1792353260.4574492,
+      "timestamp_end": 1792353260.4574897,
+      "outcome": "success",
+      "duration_s": 4.010200018456089e-05,
+      "proposal_id": "66a70c5a0f5048d3bb482f269da3e4c9",
+      "provider_call_id": "call_2816999",
+      "request_id": "967ab3686aeb4921aeb0b0f2c69e4bdc:1",
+      "trace_id": "967ab3686aeb4921aeb0b0f2c69e4bdc"
+    }
+  ],
+  "evaluation": {
+    "passed": false,
+    "checks": {
+      "tool_selection": {
+        "passed": true,
+        "expected": [
+          "search_flights",
+          "book_flight",
+          "update_identity_doc"
+        ],
+        "actual": [
+          "update_identity_doc",
+          "search_flights",
+          "book_flight"
+        ],
+        "missing": [],
+        "unexpected": []
+      },
+      "argument_accuracy": {
+        "passed": false,
+        "details": [
+          {
+            "function": "search_flights",
+            "passed": true,
+            "expected_args": {
+              "destination": "Las Vegas",
+              "date": "August 8"
+            },
+            "actual_args": {
+              "destination": "Las Vegas",
+              "date": "August 8"
+            },
+            "explanation": "All arguments match"
+          },
+          {
+            "function": "book_flight",
+            "passed": true,
+            "expected_args": {
+              "passenger_name": "Quinn Davis"
+            },
+            "actual_args": {
+              "flight_id": "FL123",
+              "passenger_name": "Quinn Davis"
+            },
+            "explanation": "All arguments match"
+          },
+          {
+            "function": "update_identity_doc",
+            "passed": false,
+            "expected_args": {
+              "doc_type": "visa",
+              "doc_number": "V77"
+            },
+            "actual_args": {
+              "doc_number": "V-77",
+              "doc_type": "visa"
+            },
+            "explanation": "Mismatch 'doc_number': expected=V77, got=V-77"
+          }
+        ]
+      }
+    },
+    "failure_reason": "Wrong arguments for: ['update_identity_doc']"
+  },
+  "passed": false,
+  "upstream_label_passed": false,
+  "execution_confirmed": true,
+  "infrastructure_error": null,
+  "transcript": "I've updated your visa number to V 77, booked your flight to Las Vegas for August 8th under the name Quinn Davis, and reserved your booking under reference B789.",
+  "transcript_source": "provider output transcription, not independent ASR",
+  "source_unchanged": true,
+  "trace_closed": true,
+  "trace_metrics": {
+    "event_counts": {
+      "session_started": 1,
+      "agent_state": 6,
+      "agent_ready": 1,
+      "model_metrics": 4,
+      "session_usage": 4,
+      "speech_started": 7,
+      "speech_ended": 7,
+      "transcript_received": 2,
+      "intent_revised": 1,
+      "intent_extended": 1,
+      "transcript_ignored": 1,
+      "conversation_item": 2,
+      "sdk_tool_lifecycle": 6,
+      "tool_raw_proposed": 3,
+      "tool_proposed": 3,
+      "controller_decision": 3,
+      "tool_prepared": 3,
+      "tool_dispatch": 3,
+      "tool_executed": 3,
+      "tool_result_delivered": 3,
+      "request_completed": 1,
+      "assistant_response": 1,
+      "session_closed": 1
+    },
+    "tool_outcomes": {
+      "success": 3
+    },
+    "external_api_outcomes": {},
+    "timings": {
+      "tool_duration_s": {
+        "count": 3,
+        "mean": 4.7311666548921494e-05,
+        "min": 4.010200018456089e-05,
+        "max": 5.626499978461652e-05,
+        "p50": 4.556799967758707e-05,
+        "p95": 5.626499978461652e-05
+      },
+      "external_api_duration_s": {
+        "count": 0,
+        "mean": null,
+        "min": null,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "gate_duration_s": {
+        "count": 3,
+        "mean": 0.6216330313333552,
+        "min": 0.0015170940000643895,
+        "max": 0.9859322020001855,
+        "p50": 0.8774497979998159,
+        "p95": 0.9859322020001855
+      },
+      "preparation_duration_s": {
+        "count": 3,
+        "mean": 0.2026901709999341,
+        "min": 4.227299996273359e-05,
+        "max": 0.6075335719997383,
+        "p50": 0.0004946680001012282,
+        "p95": 0.6075335719997383
+      },
+      "vad_to_assistant_state_s": {
+        "count": 1,
+        "mean": 3.8962210000000006,
+        "min": 3.8962210000000006,
+        "max": 3.8962210000000006,
+        "p50": 3.8962210000000006,
+        "p95": 3.8962210000000006
+      },
+      "interruption_to_state_stop_s": {
+        "count": 0,
+        "mean": null,
+        "min": null,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "sdk_ttft_s": {
+        "count": 1,
+        "mean": 0.0007545948028564453,
+        "min": 0.0007545948028564453,
+        "max": 0.0007545948028564453,
+        "p50": 0.0007545948028564453,
+        "p95": 0.0007545948028564453
+      }
+    },
+    "user_interruptions_observed": 0,
+    "interrupted_assistant_messages": 0,
+    "sdk_usage_latest": {
+      "model_usage": [
+        {
+          "type": "llm_usage",
+          "provider": "Gemini",
+          "model": "gemini-3.8-live",
+          "input_tokens": 10055,
+          "input_cached_tokens": 0,
+          "input_cache_creation_tokens": 0,
+          "input_audio_tokens": 2451,
+          "input_cached_audio_tokens": 0,
+          "input_text_tokens": 6083,
+          "input_cached_text_tokens": 0,
+          "input_image_tokens": 0,
+          "input_cached_image_tokens": 0,
+          "output_tokens": 317,
+          "output_audio_tokens": 263,
+          "output_text_tokens": 0,
+          "output_reasoning_tokens": 0,
+          "session_duration": 0.0
+        }
+      ]
+    },
+    "sdk_realtime_requests": [
+      {
+        "type": "realtime_model_metrics",
+        "label": "livekit.plugins.google.realtime.realtime_api.RealtimeModel",
+        "request_id": "GR_f11055309496",
+        "timestamp": 1792353257.8866534,
+        "duration": 0.5863423347473145,
+        "session_duration": 0.0,
+        "ttft": -1.0,
+        "cancelled": false,
+        "input_tokens": 3224,
+        "output_tokens": 27,
+        "total_tokens": 3251,
+        "tokens_per_second": 46.04818448191313,
+        "input_token_details": {
+          "audio_tokens": 817,
+          "text_tokens": 1940,
+          "image_tokens": 0,
+          "cached_tokens": 0,
+          "cached_tokens_details": {
+            "audio_tokens": 0,
+            "text_tokens": 0,
+            "image_tokens": 0
+          }
+        },
+        "output_token_details": {
+          "text_tokens": 0,
+          "audio_tokens": 0,
+          "image_tokens": 0
+        },
+        "acquire_time": 0.0,
+        "connection_reused": false,
+        "metadata": {
+          "model_name": "gemini-3.8-live",
+          "model_provider": "Gemini"
+        }
+      },
+      {
+        "type": "realtime_model_metrics",
+        "label": "livekit.plugins.google.realtime.realtime_api.RealtimeModel",
+        "request_id": "GR_f2c739e4cd5e",
+        "timestamp": 1792353260.4429336,
+        "duration": 0.0041697025299072266,
+        "session_duration": 0.0,
+        "ttft": -1.0,
+        "cancelled": false,
+        "input_tokens": 3382,
+        "output_tokens": 27,
+        "total_tokens": 3409,
+        "tokens_per_second": 6475.2820630110355,
+        "input_token_details": {
+          "audio_tokens": 817,
+          "text_tokens": 2049,
+          "image_tokens": 0,
+          "cached_tokens": 0,
+          "cached_tokens_details": {
+            "audio_tokens": 0,
+            "text_tokens": 0,
+            "image_tokens": 0
+          }
+        },
+        "output_token_details": {
+          "text_tokens": 0,
+          "audio_tokens": 0,
+          "image_tokens": 0
+        },
+        "acquire_time": 0.0,
+        "connection_reused": false,
+        "metadata": {
+          "model_name": "gemini-3.8-live",
+          "model_provider": "Gemini"
+        }
+      },
+      {
+        "type": "realtime_model_metrics",
+        "label": "livekit.plugins.google.realtime.realtime_api.RealtimeModel",
+        "request_id": "GR_97f626142df7",
+        "timestamp": 1792353261.1291976,
+        "duration": 10.272141456604004,
+        "session_duration": 0.0,
+        "ttft": 0.0007545948028564453,
+        "cancelled": false,
+        "input_tokens": 3449,
+        "output_tokens": 263,
+        "total_tokens": 3712,
+        "tokens_per_second": 25.60322997021387,
+        "input_token_details": {
+          "audio_tokens": 817,
+          "text_tokens": 2094,
+          "image_tokens": 0,
+          "cached_tokens": 0,
+          "cached_tokens_details": {
+            "audio_tokens": 0,
+            "text_tokens": 0,
+            "image_tokens": 0
+          }
+        },
+        "output_token_details": {
+          "text_tokens": 0,
+          "audio_tokens": 263,
+          "image_tokens": 0
+        },
+        "acquire_time": 0.0,
+        "connection_reused": false,
+        "metadata": {
+          "model_name": "gemini-3.8-live",
+          "model_provider": "Gemini"
+        }
+      }
+    ],
+    "trace_closed": true,
+    "official_audio_alignment_available": false,
+    "timing_note": "VAD and SDK state transitions are local proxies, not listener playback or upstream ASR alignment.",
+    "billable_cost": null
+  },
+  "trace_file": "events.jsonl",
+  "in_flight_dispatches": 0,
+  "model": "gemini-3.8-live",
+  "evaluation_method": "pinned exact, no semantic judge",
+  "observed_session": {
+    "schema_version": 2,
+    "trace_id": "967ab3686aeb4921aeb0b0f2c69e4bdc",
+    "event_id": "cd55007c5ac945e4a9b5fee75390170c",
+    "sequence": 1,
+    "event": "session_started",
+    "room": "original-vs-astra-20261019-gemma26-B-i096-r0-000-a0",
+    "elapsed_s": 0.010742,
+    "monotonic_ns": 3862697359101,
+    "wall_time": 1792353231.0844758,
+    "model": "gemini-3.8-live",
+    "policy": "guarded",
+    "settle_ms": 1000,
+    "write_settle_ms": 900,
+    "mode": "benchmark",
+    "settings": {
+      "model": "gemini-3.8-live",
+      "policy": "guarded",
+      "settle_ms": 1000,
+      "write_settle_ms": 900,
+      "gate_timeout_s": 30.0,
+      "tool_timeout_s": 20.0,
+      "latency_profile": "instant",
+      "mode": "benchmark"
+    },
+    "source_sha256": "93562be1d24da1e194c66e804b515dbb69fcbc4b54bf340f088a7357ccbeb258",
+    "vad_silence_ms": 650,
+    "audio_clock_origin": "not synchronized to client stream"
+  },
+  "final_trace_sha256": "6049cbbaac333d3b44d2dc9f637f6d80ca09598281dace6f439db99e01b29c77"
+}

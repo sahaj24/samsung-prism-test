@@ -1,0 +1,302 @@
+{
+  "sample": "housing_03_5f4a4da1575d605c43bef871",
+  "room": "original-vs-astra-20261019-gemma26-B-i056-r0-000-a0",
+  "id": "housing_03",
+  "attempts": [
+    {
+      "room": "original-vs-astra-20261019-gemma26-B-i056-r0-000-a0",
+      "infrastructure_error": null,
+      "trace_closed": false,
+      "configuration_errors": []
+    }
+  ],
+  "example_id": "housing_03",
+  "domain": "housing_location",
+  "difficulty": "easy",
+  "actual_tool_calls": [
+    {
+      "function": "update_search_filter",
+      "args": {
+        "filter_name": "max_price",
+        "value": 1800
+      },
+      "timestamp_start": 1792351833.8033571,
+      "timestamp_end": 1792351833.8034089,
+      "outcome": "success",
+      "duration_s": 5.154599966772366e-05,
+      "proposal_id": "0ec2a3baeaf34c8b9f5187eb68780355",
+      "provider_call_id": "call_6753423",
+      "request_id": "d9d62525822840a0be7d4c7579cbf272:1",
+      "trace_id": "d9d62525822840a0be7d4c7579cbf272"
+    }
+  ],
+  "evaluation": {
+    "passed": true,
+    "checks": {
+      "tool_selection": {
+        "passed": true,
+        "expected": [
+          "update_search_filter"
+        ],
+        "actual": [
+          "update_search_filter"
+        ],
+        "missing": [],
+        "unexpected": []
+      },
+      "argument_accuracy": {
+        "passed": true,
+        "details": [
+          {
+            "function": "update_search_filter",
+            "passed": true,
+            "expected_args": {
+              "filter_name": "max_price",
+              "value": 1800
+            },
+            "actual_args": {
+              "filter_name": "max_price",
+              "value": 1800
+            },
+            "explanation": "All arguments match"
+          }
+        ]
+      }
+    },
+    "failure_reason": ""
+  },
+  "passed": true,
+  "upstream_label_passed": true,
+  "execution_confirmed": true,
+  "infrastructure_error": null,
+  "transcript": "I've successfully updated your search filter to set the maximum price at eighteen hundred dollars per month.",
+  "transcript_source": "provider output transcription, not independent ASR",
+  "source_unchanged": true,
+  "trace_closed": true,
+  "trace_metrics": {
+    "event_counts": {
+      "session_started": 1,
+      "agent_state": 4,
+      "agent_ready": 1,
+      "model_metrics": 3,
+      "session_usage": 3,
+      "speech_started": 4,
+      "speech_ended": 4,
+      "transcript_received": 4,
+      "intent_revised": 3,
+      "intent_extended": 1,
+      "transcript_ignored": 1,
+      "conversation_item": 2,
+      "sdk_tool_lifecycle": 2,
+      "tool_raw_proposed": 1,
+      "tool_proposed": 1,
+      "controller_decision": 1,
+      "tool_prepared": 1,
+      "tool_dispatch": 1,
+      "tool_executed": 1,
+      "tool_result_delivered": 1,
+      "request_completed": 1,
+      "assistant_response": 1,
+      "session_closed": 1
+    },
+    "tool_outcomes": {
+      "success": 1
+    },
+    "external_api_outcomes": {},
+    "timings": {
+      "tool_duration_s": {
+        "count": 1,
+        "mean": 5.154599966772366e-05,
+        "min": 5.154599966772366e-05,
+        "max": 5.154599966772366e-05,
+        "p50": 5.154599966772366e-05,
+        "p95": 5.154599966772366e-05
+      },
+      "external_api_duration_s": {
+        "count": 0,
+        "mean": null,
+        "min": null,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "gate_duration_s": {
+        "count": 1,
+        "mean": 0.8850811639999847,
+        "min": 0.8850811639999847,
+        "max": 0.8850811639999847,
+        "p50": 0.8850811639999847,
+        "p95": 0.8850811639999847
+      },
+      "preparation_duration_s": {
+        "count": 1,
+        "mean": 0.05564336099996581,
+        "min": 0.05564336099996581,
+        "max": 0.05564336099996581,
+        "p50": 0.05564336099996581,
+        "p95": 0.05564336099996581
+      },
+      "vad_to_assistant_state_s": {
+        "count": 1,
+        "mean": 2.1236809999999977,
+        "min": 2.1236809999999977,
+        "max": 2.1236809999999977,
+        "p50": 2.1236809999999977,
+        "p95": 2.1236809999999977
+      },
+      "interruption_to_state_stop_s": {
+        "count": 0,
+        "mean": null,
+        "min": null,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "sdk_ttft_s": {
+        "count": 1,
+        "mean": 0.0016186237335205078,
+        "min": 0.0016186237335205078,
+        "max": 0.0016186237335205078,
+        "p50": 0.0016186237335205078,
+        "p95": 0.0016186237335205078
+      }
+    },
+    "user_interruptions_observed": 0,
+    "interrupted_assistant_messages": 0,
+    "sdk_usage_latest": {
+      "model_usage": [
+        {
+          "type": "llm_usage",
+          "provider": "Gemini",
+          "model": "gemini-3.8-live",
+          "input_tokens": 5987,
+          "input_cached_tokens": 0,
+          "input_cache_creation_tokens": 0,
+          "input_audio_tokens": 1108,
+          "input_cached_audio_tokens": 0,
+          "input_text_tokens": 3897,
+          "input_cached_text_tokens": 0,
+          "input_image_tokens": 0,
+          "input_cached_image_tokens": 0,
+          "output_tokens": 183,
+          "output_audio_tokens": 158,
+          "output_text_tokens": 0,
+          "output_reasoning_tokens": 0,
+          "session_duration": 0.0
+        }
+      ]
+    },
+    "sdk_realtime_requests": [
+      {
+        "type": "realtime_model_metrics",
+        "label": "livekit.plugins.google.realtime.realtime_api.RealtimeModel",
+        "request_id": "GR_a52559d82d09",
+        "timestamp": 1792351820.5567396,
+        "duration": 12.295860052108765,
+        "session_duration": 0.0,
+        "ttft": -1.0,
+        "cancelled": false,
+        "input_tokens": 2959,
+        "output_tokens": 25,
+        "total_tokens": 2984,
+        "tokens_per_second": 2.0332046635251393,
+        "input_token_details": {
+          "audio_tokens": 554,
+          "text_tokens": 1924,
+          "image_tokens": 0,
+          "cached_tokens": 0,
+          "cached_tokens_details": {
+            "audio_tokens": 0,
+            "text_tokens": 0,
+            "image_tokens": 0
+          }
+        },
+        "output_token_details": {
+          "text_tokens": 0,
+          "audio_tokens": 0,
+          "image_tokens": 0
+        },
+        "acquire_time": 0.0,
+        "connection_reused": false,
+        "metadata": {
+          "model_name": "gemini-3.8-live",
+          "model_provider": "Gemini"
+        }
+      },
+      {
+        "type": "realtime_model_metrics",
+        "label": "livekit.plugins.google.realtime.realtime_api.RealtimeModel",
+        "request_id": "GR_85d72913f693",
+        "timestamp": 1792351834.4021044,
+        "duration": 6.060704946517944,
+        "session_duration": 0.0,
+        "ttft": 0.0016186237335205078,
+        "cancelled": false,
+        "input_tokens": 3028,
+        "output_tokens": 158,
+        "total_tokens": 3186,
+        "tokens_per_second": 26.069574644245915,
+        "input_token_details": {
+          "audio_tokens": 554,
+          "text_tokens": 1973,
+          "image_tokens": 0,
+          "cached_tokens": 0,
+          "cached_tokens_details": {
+            "audio_tokens": 0,
+            "text_tokens": 0,
+            "image_tokens": 0
+          }
+        },
+        "output_token_details": {
+          "text_tokens": 0,
+          "audio_tokens": 158,
+          "image_tokens": 0
+        },
+        "acquire_time": 0.0,
+        "connection_reused": false,
+        "metadata": {
+          "model_name": "gemini-3.8-live",
+          "model_provider": "Gemini"
+        }
+      }
+    ],
+    "trace_closed": true,
+    "official_audio_alignment_available": false,
+    "timing_note": "VAD and SDK state transitions are local proxies, not listener playback or upstream ASR alignment.",
+    "billable_cost": null
+  },
+  "trace_file": "events.jsonl",
+  "in_flight_dispatches": 0,
+  "model": "gemini-3.8-live",
+  "evaluation_method": "pinned exact, no semantic judge",
+  "observed_session": {
+    "schema_version": 2,
+    "trace_id": "d9d62525822840a0be7d4c7579cbf272",
+    "event_id": "3c52fdafa9c14924828c93694382d98a",
+    "sequence": 1,
+    "event": "session_started",
+    "room": "original-vs-astra-20261019-gemma26-B-i056-r0-000-a0",
+    "elapsed_s": 0.008797,
+    "monotonic_ns": 2444260280189,
+    "wall_time": 1792351812.6473963,
+    "model": "gemini-3.8-live",
+    "policy": "guarded",
+    "settle_ms": 1000,
+    "write_settle_ms": 900,
+    "mode": "benchmark",
+    "settings": {
+      "model": "gemini-3.8-live",
+      "policy": "guarded",
+      "settle_ms": 1000,
+      "write_settle_ms": 900,
+      "gate_timeout_s": 30.0,
+      "tool_timeout_s": 20.0,
+      "latency_profile": "instant",
+      "mode": "benchmark"
+    },
+    "source_sha256": "93562be1d24da1e194c66e804b515dbb69fcbc4b54bf340f088a7357ccbeb258",
+    "vad_silence_ms": 650,
+    "audio_clock_origin": "not synchronized to client stream"
+  },
+  "final_trace_sha256": "daaa56d67a1b1c33d85dd756579d88316c51faaf787e4d855150c58bf3192998"
+}

@@ -1,0 +1,332 @@
+{
+  "sample": "travel_23_65e8cf8f4c7424fa062e54a3",
+  "room": "original-vs-astra-20261019-gemma26-B-i097-r0-000-a0",
+  "id": "travel_23",
+  "attempts": [
+    {
+      "room": "original-vs-astra-20261019-gemma26-B-i097-r0-000-a0",
+      "infrastructure_error": null,
+      "trace_closed": false,
+      "configuration_errors": []
+    }
+  ],
+  "example_id": "travel_23",
+  "domain": "travel_identity",
+  "difficulty": "hard",
+  "actual_tool_calls": [
+    {
+      "function": "update_identity_doc",
+      "args": {
+        "doc_type": "passport",
+        "doc_number": "P1122"
+      },
+      "timestamp_start": 1792353322.140266,
+      "timestamp_end": 1792353322.140302,
+      "outcome": "success",
+      "duration_s": 3.553099986675079e-05,
+      "proposal_id": "8f977b02d4604400a3ec0d3534854d3f",
+      "provider_call_id": "call_4198607",
+      "request_id": "2af82cc201954f7b8b717646670a4f4b:1",
+      "trace_id": "2af82cc201954f7b8b717646670a4f4b"
+    },
+    {
+      "function": "update_identity_doc",
+      "args": {
+        "doc_type": "driver_license",
+        "doc_number": "DL9090"
+      },
+      "timestamp_start": 1792353322.1458795,
+      "timestamp_end": 1792353322.14593,
+      "outcome": "success",
+      "duration_s": 5.000300006940961e-05,
+      "proposal_id": "f015bbeffa9045cba352df6116b77e95",
+      "provider_call_id": "call_4198611",
+      "request_id": "2af82cc201954f7b8b717646670a4f4b:1",
+      "trace_id": "2af82cc201954f7b8b717646670a4f4b"
+    }
+  ],
+  "evaluation": {
+    "passed": true,
+    "checks": {
+      "tool_selection": {
+        "passed": true,
+        "expected": [
+          "update_identity_doc",
+          "update_identity_doc"
+        ],
+        "actual": [
+          "update_identity_doc",
+          "update_identity_doc"
+        ],
+        "missing": [],
+        "unexpected": []
+      },
+      "argument_accuracy": {
+        "passed": true,
+        "details": [
+          {
+            "function": "update_identity_doc",
+            "passed": true,
+            "expected_args": {
+              "doc_type": "passport",
+              "doc_number": "P1122"
+            },
+            "actual_args": {
+              "doc_type": "passport",
+              "doc_number": "P1122"
+            },
+            "explanation": "All arguments match"
+          },
+          {
+            "function": "update_identity_doc",
+            "passed": true,
+            "expected_args": {
+              "doc_type": "driver_license",
+              "doc_number": "DL9090"
+            },
+            "actual_args": {
+              "doc_type": "driver_license",
+              "doc_number": "DL9090"
+            },
+            "explanation": "All arguments match"
+          }
+        ]
+      }
+    },
+    "failure_reason": ""
+  },
+  "passed": true,
+  "upstream_label_passed": true,
+  "execution_confirmed": true,
+  "infrastructure_error": null,
+  "transcript": "Both your passport and driver's license numbers have been successfully updated.",
+  "transcript_source": "provider output transcription, not independent ASR",
+  "source_unchanged": true,
+  "trace_closed": true,
+  "trace_metrics": {
+    "event_counts": {
+      "session_started": 1,
+      "agent_state": 4,
+      "agent_ready": 1,
+      "speech_started": 3,
+      "model_metrics": 3,
+      "session_usage": 3,
+      "speech_ended": 3,
+      "transcript_received": 2,
+      "intent_revised": 1,
+      "intent_extended": 1,
+      "transcript_ignored": 1,
+      "conversation_item": 2,
+      "sdk_tool_lifecycle": 4,
+      "tool_raw_proposed": 2,
+      "tool_proposed": 2,
+      "controller_decision": 2,
+      "tool_prepared": 2,
+      "tool_dispatch": 2,
+      "tool_executed": 2,
+      "tool_result_delivered": 2,
+      "request_completed": 1,
+      "assistant_response": 1,
+      "session_closed": 1
+    },
+    "tool_outcomes": {
+      "success": 2
+    },
+    "external_api_outcomes": {},
+    "timings": {
+      "tool_duration_s": {
+        "count": 2,
+        "mean": 4.27669999680802e-05,
+        "min": 3.553099986675079e-05,
+        "max": 5.000300006940961e-05,
+        "p50": 3.553099986675079e-05,
+        "p95": 5.000300006940961e-05
+      },
+      "external_api_duration_s": {
+        "count": 0,
+        "mean": null,
+        "min": null,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "gate_duration_s": {
+        "count": 2,
+        "mean": 0.8821502705000057,
+        "min": 0.8786718490000567,
+        "max": 0.8856286919999548,
+        "p50": 0.8786718490000567,
+        "p95": 0.8856286919999548
+      },
+      "preparation_duration_s": {
+        "count": 2,
+        "mean": 0.0003859250000459724,
+        "min": 0.0002206809999734105,
+        "max": 0.0005511690001185343,
+        "p50": 0.0002206809999734105,
+        "p95": 0.0005511690001185343
+      },
+      "vad_to_assistant_state_s": {
+        "count": 1,
+        "mean": 3.1800669999999975,
+        "min": 3.1800669999999975,
+        "max": 3.1800669999999975,
+        "p50": 3.1800669999999975,
+        "p95": 3.1800669999999975
+      },
+      "interruption_to_state_stop_s": {
+        "count": 0,
+        "mean": null,
+        "min": null,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "sdk_ttft_s": {
+        "count": 1,
+        "mean": 0.0006222724914550781,
+        "min": 0.0006222724914550781,
+        "max": 0.0006222724914550781,
+        "p50": 0.0006222724914550781,
+        "p95": 0.0006222724914550781
+      }
+    },
+    "user_interruptions_observed": 0,
+    "interrupted_assistant_messages": 0,
+    "sdk_usage_latest": {
+      "model_usage": [
+        {
+          "type": "llm_usage",
+          "provider": "Gemini",
+          "model": "gemini-3.8-live",
+          "input_tokens": 6597,
+          "input_cached_tokens": 0,
+          "input_cache_creation_tokens": 0,
+          "input_audio_tokens": 1622,
+          "input_cached_audio_tokens": 0,
+          "input_text_tokens": 3987,
+          "input_cached_text_tokens": 0,
+          "input_image_tokens": 0,
+          "input_cached_image_tokens": 0,
+          "output_tokens": 143,
+          "output_audio_tokens": 112,
+          "output_text_tokens": 0,
+          "output_reasoning_tokens": 0,
+          "session_duration": 0.0
+        }
+      ]
+    },
+    "sdk_realtime_requests": [
+      {
+        "type": "realtime_model_metrics",
+        "label": "livekit.plugins.google.realtime.realtime_api.RealtimeModel",
+        "request_id": "GR_743d0db83a36",
+        "timestamp": 1792353320.6164205,
+        "duration": 0.6283531188964844,
+        "session_duration": 0.0,
+        "ttft": -1.0,
+        "cancelled": false,
+        "input_tokens": 3216,
+        "output_tokens": 31,
+        "total_tokens": 3247,
+        "tokens_per_second": 49.335316508720915,
+        "input_token_details": {
+          "audio_tokens": 811,
+          "text_tokens": 1938,
+          "image_tokens": 0,
+          "cached_tokens": 0,
+          "cached_tokens_details": {
+            "audio_tokens": 0,
+            "text_tokens": 0,
+            "image_tokens": 0
+          }
+        },
+        "output_token_details": {
+          "text_tokens": 0,
+          "audio_tokens": 0,
+          "image_tokens": 0
+        },
+        "acquire_time": 0.0,
+        "connection_reused": false,
+        "metadata": {
+          "model_name": "gemini-3.8-live",
+          "model_provider": "Gemini"
+        }
+      },
+      {
+        "type": "realtime_model_metrics",
+        "label": "livekit.plugins.google.realtime.realtime_api.RealtimeModel",
+        "request_id": "GR_f79af564ffa6",
+        "timestamp": 1792353323.01234,
+        "duration": 4.203588962554932,
+        "session_duration": 0.0,
+        "ttft": 0.0006222724914550781,
+        "cancelled": false,
+        "input_tokens": 3381,
+        "output_tokens": 112,
+        "total_tokens": 3493,
+        "tokens_per_second": 26.643899058086465,
+        "input_token_details": {
+          "audio_tokens": 811,
+          "text_tokens": 2049,
+          "image_tokens": 0,
+          "cached_tokens": 0,
+          "cached_tokens_details": {
+            "audio_tokens": 0,
+            "text_tokens": 0,
+            "image_tokens": 0
+          }
+        },
+        "output_token_details": {
+          "text_tokens": 0,
+          "audio_tokens": 112,
+          "image_tokens": 0
+        },
+        "acquire_time": 0.0,
+        "connection_reused": false,
+        "metadata": {
+          "model_name": "gemini-3.8-live",
+          "model_provider": "Gemini"
+        }
+      }
+    ],
+    "trace_closed": true,
+    "official_audio_alignment_available": false,
+    "timing_note": "VAD and SDK state transitions are local proxies, not listener playback or upstream ASR alignment.",
+    "billable_cost": null
+  },
+  "trace_file": "events.jsonl",
+  "in_flight_dispatches": 0,
+  "model": "gemini-3.8-live",
+  "evaluation_method": "pinned exact, no semantic judge",
+  "observed_session": {
+    "schema_version": 2,
+    "trace_id": "2af82cc201954f7b8b717646670a4f4b",
+    "event_id": "fee1906dc8544e338ebb6c31cd4510c5",
+    "sequence": 1,
+    "event": "session_started",
+    "room": "original-vs-astra-20261019-gemma26-B-i097-r0-000-a0",
+    "elapsed_s": 0.036813,
+    "monotonic_ns": 3926520579956,
+    "wall_time": 1792353294.9076972,
+    "model": "gemini-3.8-live",
+    "policy": "guarded",
+    "settle_ms": 1000,
+    "write_settle_ms": 900,
+    "mode": "benchmark",
+    "settings": {
+      "model": "gemini-3.8-live",
+      "policy": "guarded",
+      "settle_ms": 1000,
+      "write_settle_ms": 900,
+      "gate_timeout_s": 30.0,
+      "tool_timeout_s": 20.0,
+      "latency_profile": "instant",
+      "mode": "benchmark"
+    },
+    "source_sha256": "93562be1d24da1e194c66e804b515dbb69fcbc4b54bf340f088a7357ccbeb258",
+    "vad_silence_ms": 650,
+    "audio_clock_origin": "not synchronized to client stream"
+  },
+  "final_trace_sha256": "1fc67ddad4224124811910ee93cd6a8c5584e45b29fa3218378c111fad171430"
+}

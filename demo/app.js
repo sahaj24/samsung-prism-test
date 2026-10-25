@@ -107,7 +107,38 @@ function quietTimelineEvent(event) {
   if (event.event === 'demo_result') return /Available|^Coffee with|^Draft saved/i.test(event.text || '');
   return ['tool_dispatch','plan_updated','workspace_items'].includes(event.event);
 }
-if (typeof module !== 'undefined') module.exports = {describeEvent,timelineState,timelineCaption};
+// The microphone is published only after the actual worker acknowledges its guard.
+// A stale API/worker cannot silently turn Demo Live into unrestricted Live.
+function validateSessionPresentation(reply, mode){
+  if(reply.activation_version!==2 || reply.presentation!==mode)
+    throw new Error('Restart Reprise and reload: activation configuration is out of date.');
+}
+function validateActivation(reply,mode){
+  validateSessionPresentation(reply,mode);
+  if(reply.enabled!==(mode==='demo-live') || !['standby','active','interruption'].includes(reply.state)
+      || !Number.isInteger(reply.epoch))
+    throw new Error('Agent did not confirm the requested listening guard.');
+  return reply.state;
+}
+async function negotiatePresentation(target,mode){
+  let agent=[...target.remoteParticipants.values()].find(p=>p.isAgent);
+  if(!agent)agent=await new Promise((resolve,reject)=>{
+    const joined=p=>{if(p.isAgent){cleanup();resolve(p);}};
+    const timer=setTimeout(()=>{cleanup();reject(new Error('Voice agent did not connect.'));},20000);
+    const cleanup=()=>{clearTimeout(timer);target.off('participantConnected',joined);};
+    target.on('participantConnected',joined);
+  });
+  const reply=JSON.parse(await target.localParticipant.performRpc({destinationIdentity:agent.identity,
+    method:'reprise.presentation',payload:JSON.stringify({mode,activation_version:2}),responseTimeout:10000}));
+  validateActivation(reply,mode);
+  return reply;
+}
+async function connectVoiceInput(target,mode){
+  const reply=await negotiatePresentation(target,mode);
+  await target.localParticipant.setMicrophoneEnabled(true);
+  return reply;
+}
+if (typeof module !== 'undefined') module.exports = {describeEvent,timelineState,timelineCaption,validateActivation,validateSessionPresentation,connectVoiceInput};
 if (typeof document !== 'undefined') initialize();
 
 function initialize() {
@@ -206,7 +237,33 @@ liveResults.append(actionCard);
 const micIndicator=document.createElement('span');
 micIndicator.className='mic-indicator';micIndicator.textContent='Mic off';
 document.querySelector('.chat').prepend(micIndicator);
-let presentationMode='live', livePlan=null;
+let presentationMode='live', livePlan=null, activationState=null, activationEpoch=-1, changingPresentation=false;
+const activationStatus=document.createElement('span');
+activationStatus.className='status';activationStatus.setAttribute('role','status');
+activationStatus.hidden=true;activationStatus.textContent='Standby';
+presentationControls.append(activationStatus);
+function renderActivation(){
+  activationStatus.hidden=demoActive||presentationMode!=='demo-live'||activationState===null;
+  activationStatus.textContent=activationState==='standby'?'Standby':'Active';
+}
+async function selectLivePresentation(next){
+  if(!activeRoom||next===presentationMode)return true;
+  if(localMode){notice('End the text session before selecting Demo Live.');return false;}
+  const target=room, epoch=generation;
+  changingPresentation=true;
+  try{
+    if(!muted)await target.localParticipant.setMicrophoneEnabled(false);
+    const result=await negotiatePresentation(target,next);
+    if(target!==room||epoch!==generation)return false;
+    activationState=result.state;activationEpoch=result.epoch;
+    if(!muted)await target.localParticipant.setMicrophoneEnabled(true);
+    return true;
+  }catch(error){
+    notice(error.message||'Could not confirm the agent listening guard.');
+    await closeSession();return false;
+  }finally{changingPresentation=false;}
+}
+
 function syncModeAvailability(){
   $('experience').disabled=false;
   $('experience').querySelector('[value="scripted"]').disabled=!!(activeRoom||room||$('start').disabled&&!demoActive);
@@ -224,6 +281,8 @@ function presentDataSource(){
     if(presentationMode==='live')liveResults.append(timelinePanel);
     else timelineParent.append(timelinePanel);
   }
+  renderActivation();
+  if(!activeRoom&&!demoActive)$('planner').disabled=presentationMode==='demo-live'||callAssistActive;
   syncModeAvailability();
 }
 function pauseDemo() {demoPlaying=false; ++demoEpoch; clearInterval(demoTimer); $('demoPlay').textContent='Play';}
@@ -241,8 +300,14 @@ function nextDemo() {
   if (!demoActive) return;
   if (!playback.advance() || playback.position===playback.length) pauseDemo();
 }
-$('experience').onchange = () => {
+$('experience').onchange = async () => {
   const next=$('experience').value;
+  if(!demoActive&&next!=='scripted'&&activeRoom){
+    $('experience').disabled=true;
+    const changed=await selectLivePresentation(next);
+    $('experience').disabled=false;
+    if(!changed){$('experience').value=presentationMode;return;}
+  }
   if(next==='scripted'&&(activeRoom||room||$('start').disabled&&!demoActive)){$('experience').value=presentationMode;return;}
   const wasDemo=demoActive;
   presentationMode=next;
@@ -253,7 +318,7 @@ $('experience').onchange = () => {
   currentTranscriptRow?.setAttribute('data-current','false');currentTranscriptRow=null;lastUserRow=null;
   $('phoneSurface').setAttribute('data-experience',demoActive?'scripted':callAssistActive?'call-assist':'live');
   $('demoControls').hidden=!demoActive; $('demoBadge').hidden=!demoActive; $('voiceConnections').hidden=demoActive;
-  $('start').disabled=demoActive; $('planner').disabled=demoActive; $('mode').disabled=demoActive;
+  $('start').disabled=demoActive; $('planner').disabled=demoActive||presentationMode==='demo-live'; $('mode').disabled=demoActive;
   if (demoActive) {
     $('phoneModality').textContent='Scripted demo'; service('livekitStatus','not used'); service('geminiStatus','not used'); resetDemo();
   } else {
@@ -265,7 +330,7 @@ $('experience').onchange = () => {
   }
   syncModeAvailability();
 };
-$('mode').onchange=()=>{callAssistActive=$('mode').value==='call_assist';if(callAssistActive)$('planner').value='gemini';$('planner').disabled=callAssistActive;};
+$('mode').onchange=()=>{callAssistActive=$('mode').value==='call_assist';if(callAssistActive)$('planner').value='gemini';$('planner').disabled=callAssistActive||presentationMode==='demo-live';};
 $('demoWorkflow').onchange = () => {if (demoActive) resetDemo();};
 $('demoRestart').onclick = () => {if (demoActive) resetDemo();};
 $('demoNext').onclick = () => {pauseDemo(); nextDemo();};
@@ -307,7 +372,7 @@ function phoneActivity(entry,event) {
   }
 }
 function liveText(role,text) {
-  $(role === 'user' ? 'partial' : 'agentPartial').textContent = text ? (role === 'user' ? 'You' : 'Reprise') + ' · ' + text : '';
+  $(role === 'user' ? 'partial' : 'agentPartial').textContent = text ? (role === 'user' ? (presentationMode==='demo-live'?'Call':'You') : 'Reprise') + ' · ' + text : '';
   $(role === 'user' ? 'userLiveRow' : 'agentLiveRow').hidden = !text;
   $(role === 'user' ? 'userLiveTime' : 'agentLiveTime').textContent = text ? new Date().toLocaleTimeString() : '';
   if (text) phoneTranscript(role,text);
@@ -338,7 +403,7 @@ function append(entry, event = {}) {
   if (event.simulated) item.setAttribute('data-source','scripted');
   if (event.proposal_id) item.setAttribute('data-proposal-id',event.proposal_id);
   const heading = document.createElement('header'), label = document.createElement('strong'), time = document.createElement('time');
-  label.textContent = entry.role ? (event.simulated && event.speaker ? event.speaker : entry.role==='user'?'You':'Reprise') : entry.title;
+  label.textContent = entry.role ? (event.simulated && event.speaker ? event.speaker : entry.role==='user'?(presentationMode==='demo-live'?'Call':'You'):'Reprise') : entry.title;
   const date = new Date(event.wall_time ? event.wall_time * 1000 : Date.now());
   time.dateTime = date.toISOString(); time.textContent = date.toLocaleTimeString();
   heading.append(label,time);
@@ -391,6 +456,15 @@ function renderEvent(event) {
   if(event.event==='intent_revised') lastUserRow?.setAttribute('data-correction','true');
   const change = ({intent_revised:'Intent revised',tool_superseded:'Earlier action superseded',tool_caller_detached:'Speech response interrupted'})[event.event];
   if (change) { $('phoneRevision').hidden = false; $('phoneRevision').textContent = change; }
+  if(event.event==='call_activation'){
+    if(event.epoch<activationEpoch)return; // old startup events cannot override an RPC acknowledgement
+    if(!changingPresentation && event.enabled!==(presentationMode==='demo-live')){
+      notice('Agent listening mode mismatch. Reconnect before speaking.');
+      closeSession();return;
+    }
+    if(!changingPresentation){activationState=event.state;activationEpoch=event.epoch;renderActivation();}
+    return;
+  }
   if (event.event === 'transcript_received') { if (!event.is_final) liveText('user',event.text); return; }
   if (event.event === 'conversation_item' && ['user','assistant'].includes(event.role)) {
     committed[event.role] = event.text; liveText(event.role,''); phoneTranscript(event.role,event.text);
@@ -445,7 +519,7 @@ async function closeSession() {
 }
 async function finishSession() {
   ++generation; clearInterval(pollTimer); clearInterval(clockTimer);
-  activeRoom = null; polling = false;
+  activeRoom = null; polling = false;activationState=null;activationEpoch=-1;renderActivation();
   const previous = room; room = null;
   if (previous) await previous.disconnect();
   document.querySelectorAll('[data-agent-audio]').forEach(el => el.remove());
@@ -459,18 +533,20 @@ async function finishSession() {
 }
 $('start').onclick = async () => {
   if (demoActive) return;
+  activationState=null;activationEpoch=-1;renderActivation();
   $('start').disabled = true; notice(''); showStatus('Connecting'); service('livekitStatus','connecting'); service('geminiStatus','waiting for agent');
   callAssistActive=$('mode').value==='call_assist';syncModeAvailability();
   const epoch = ++generation;
-  localMode = !callAssistActive&&$('planner').value === 'local';
+  localMode = presentationMode!=='demo-live'&&!callAssistActive&&$('planner').value === 'local';
   $('phoneModality').textContent = localMode ? 'Text assistant' : 'Voice assistant';
   $('phoneTranscriptRow').hidden = true; $('phoneActivity').hidden = true; $('phoneRevision').hidden = true;
   $('localStatus').hidden = !localMode;
   if (localMode) {service('livekitStatus','not used'); service('geminiStatus','not used'); service('localStatus','connecting');}
   try {
-    const response = await fetch('/session?mode=' + encodeURIComponent($('mode').value) + '&planner=' + (localMode ? 'local' : 'gemini'), {method:'POST'});
+    const response = await fetch('/session?mode=' + encodeURIComponent($('mode').value) + '&planner=' + (localMode ? 'local' : 'gemini') + '&presentation=' + (presentationMode==='demo-live'?'demo-live':'live'), {method:'POST'});
     if (!response.ok) throw new Error('Could not start a session (' + response.status + ')');
     const data = await response.json();
+    if(!localMode)validateSessionPresentation(data,presentationMode);
     if(callAssistActive){assistWorkspace=data.workspace_backend;assistSupersededTime=null;assistCalendar=null;assistProjectionKey=null;}
     if (localMode) {
       activeRoom = data.room; cursor = 0; polling = false; agentClosed = false; agentReady = true; currentPlan = null; seen.clear();
@@ -511,7 +587,9 @@ $('start').onclick = async () => {
     });
     room.on(RoomEvent.Disconnected, () => { if (epoch === generation && activeRoom) closeSession(); });
     await room.connect(data.url,data.token); await room.startAudio();
-    await room.localParticipant.setMicrophoneEnabled(true);
+    const activated=await connectVoiceInput(room,presentationMode);
+    if(epoch!==generation)return;
+    activationState=activated.state;activationEpoch=activated.epoch;renderActivation();
     service('livekitStatus','connected');
     activeRoom = data.room; cursor = 0; polling = false; muted = false; agentClosed = false; agentReady = false; liveSegments.clear(); committed.user=''; committed.assistant=''; seen.clear(); currentPlan = null;
     $('planCard').hidden = true; $('confirmPlan').disabled = true; $('mode').disabled = true; $('planner').disabled = true;

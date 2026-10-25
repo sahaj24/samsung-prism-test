@@ -679,6 +679,12 @@ class ProductivityBackend:
         # membership again; an ID's occurrence inside a plan is not a dependency.
         return name == "list_tasks" and key == "task_list_id" and value in self.management.known_lists
 
+    def suspend_pending(self, revision):
+        self.confirmation_context = None
+        self.revision = revision
+        for plan in self.store.invalidate(self.room, revision, lambda actions: set(range(len(actions)))):
+            self.publish(plan)
+
     def observe_input(self, text, *, is_final=True, revision=None):
         if text and text.strip():
             previous = self.latest_input

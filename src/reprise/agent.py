@@ -20,6 +20,8 @@ from livekit.agents import (
 from livekit.plugins import google
 
 from .backend import FDBBackend
+from .call_activation import (ACTIVATION_VERSION, CallActivation, PROMPT as ACTIVATION_PROMPT,
+                              activation_enabled)
 from .catalog import TOOLS, ToolSpec
 from .config import ROOT, Settings, credential, source_digest
 from .coordinator import ClarificationRequired, Coordinator, InvalidCall, OutcomeUnknown, Superseded
@@ -32,6 +34,11 @@ from .trace import Trace
 def make_tool(spec: ToolSpec, coordinator: Coordinator):
     async def invoke(raw_arguments: dict, context: RunContext):
         try:
+            gate = coordinator.activation
+            if gate and not gate.allows_response(context.speech_handle.id):
+                coordinator.trace.event("activation_tool_blocked", function=spec.name,
+                                        response_id=context.speech_handle.id, state=gate.state)
+                raise StopResponse()
             return await coordinator.execute(
                 spec, raw_arguments,
                 interrupted=lambda: context.speech_handle.interrupted,
@@ -61,8 +68,31 @@ def make_text_input_handler(coordinator):
     async def handle(session, event):
         # Observe before interruption/generation, using the same safety boundary as audio.
         coordinator.observe_transcript(event.text, is_final=True, source="text")
+        if coordinator.activation and not coordinator.activation.allows_tools:
+            # Keep typed background conversation in the same model context, without
+            # default_handler's generate_reply. Audio already enters Gemini directly.
+            agent = session.current_agent
+            history = agent.chat_ctx.copy()
+            history.add_message(role="user", content=event.text)
+            await agent.update_chat_ctx(history)
+            coordinator.trace.event("conversation_item", role="user", text=event.text)
+            return
         await default_handler(session, event)
     return handle
+
+
+class CallListeningAgent(Agent):
+    def __init__(self, *, instructions, activation):
+        super().__init__(instructions=instructions)
+        self.activation = activation
+
+    def realtime_audio_output_node(self, audio, model_settings):
+        speech = self.session.current_speech
+        return self.activation.filter_output(audio, speech.id if speech else None)
+
+    def transcription_node(self, text, model_settings):
+        speech = self.session.current_speech
+        return self.activation.filter_output(text, speech.id if speech else None)
 
 
 def build_model(settings: Settings):
@@ -103,6 +133,8 @@ async def entrypoint(ctx: agents.JobContext):
         room_metadata = json.loads(ctx.room.metadata or "{}")
     except json.JSONDecodeError:
         room_metadata = {}
+    if not isinstance(room_metadata, dict):
+        room_metadata = {}
     if room_name.startswith("reprise-demo-") and room_metadata.get("reprise_mode") in {"extension", "productivity", "benchmark", "call_assist"}:
         settings = replace(settings, mode=room_metadata["reprise_mode"])
     directory = ROOT / "runs" / room_name
@@ -131,12 +163,39 @@ async def entrypoint(ctx: agents.JobContext):
     trace.event("session_started", model=settings.model, policy=settings.policy,
                 settle_ms=settings.settle_ms, write_settle_ms=settings.write_settle_ms,
                 mode=settings.mode, settings=asdict(settings), source_sha256=source_digest(),
+                presentation=room_metadata.get("presentation"),
+                activation_version=room_metadata.get("activation_version"),
                 vad_silence_ms=int(os.getenv("REPRISE_VAD_SILENCE_MS", "650")),
                 audio_clock_origin="not synchronized to client stream")
     session = AgentSession(llm=build_model(settings),
                            tools=[make_tool(s, coordinator) for s in specs],
                            max_tool_steps=12 if settings.mode in {"productivity", "call_assist"} else 8)
     monitor_task = None
+    activation = CallActivation(coordinator, enabled=activation_enabled(room_name, room_metadata))
+    coordinator.activation = activation
+    agent = CallListeningAgent(instructions=prompt + (ACTIVATION_PROMPT if activation.enabled else ""),
+                               activation=activation)
+
+    def activation_changed():
+        if activation.enabled and activation.state == "standby" and session.current_speech:
+            session.interrupt(force=True)
+    activation.on_change = activation_changed
+
+    @ctx.room.local_participant.register_rpc_method("reprise.presentation")
+    async def set_presentation(data):
+        participant = ctx.room.remote_participants.get(data.caller_identity)
+        if not participant or not participant.identity.startswith("demo-"):
+            raise ValueError("Only the connected demo participant can select a presentation")
+        request = json.loads(data.payload)
+        mode = request.get("mode")
+        if request.get("activation_version") != ACTIVATION_VERSION:
+            raise ValueError("Reload the demo: activation protocol mismatch")
+        if mode not in {"live", "demo-live"}:
+            raise ValueError("Invalid presentation")
+        activation.set_enabled(mode == "demo-live")
+        await agent.update_instructions(prompt + (ACTIVATION_PROMPT if activation.enabled else ""))
+        return json.dumps({"enabled": activation.enabled, "state": activation.state,
+                           "presentation": mode, "activation_version": ACTIVATION_VERSION, "epoch": activation.epoch})
 
     attach_session_events(session, coordinator)
 
@@ -152,7 +211,7 @@ async def entrypoint(ctx: agents.JobContext):
 
     ctx.add_shutdown_callback(shutdown)
     await session.start(
-        room=ctx.room, agent=Agent(instructions=prompt),
+        room=ctx.room, agent=agent,
         room_options=room_io.RoomOptions(
             video_input=False,
             text_input=room_io.TextInputOptions(text_input_cb=make_text_input_handler(coordinator)),

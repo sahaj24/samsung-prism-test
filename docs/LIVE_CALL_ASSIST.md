@@ -1,77 +1,33 @@
-# Live Call Assist — current handoff
+# Call listening and Calendar test transport
 
-The polished demo now has three separate choices: existing **Live**, unchanged
-scripted **Demo**, and **Live Call Assist**. This addition is limited to one
-Calendar event per plan. Gemini Live remains the voice backend.
+The presentation selector offers **Live**, **Demo**, and **Demo Live**. Live uses the real agent without a wake requirement. Demo is isolated scripted playback. Demo Live uses the same Gemini/LiveKit session with a deterministic listening gate, an empty phone-sized recording area, actual transcripts and actual controller events.
 
-## Run
+Start with `./start-reprise.sh`, open `http://127.0.0.1:8844/`, select Demo Live, and start a conversation. The worker must acknowledge the activation protocol before microphone publication. Unknown demo room metadata defaults to standby, and outdated servers/workers fail the handshake rather than silently running unrestricted.
 
-```bash
-cd /home/naithick/Prism/samsung-prism-test
-./start-reprise.sh
-```
+## Activation and authority
 
-Open `http://127.0.0.1:8844/`, select **Live Call Assist**, then Start conversation.
-The existing LiveKit audio/transcription handlers, Gemini Live, independent Silero
-microphone monitor, Coordinator, ProductivityBackend and PlanStore remain in use.
-Live phone previews derive from `plan_updated`; completion cards require the
-action's actual completed status and matching receipt/resource ID. The execution
-strip and conversation receive real backend/SDK events, never scripted frames.
+- Standby continues transcription but blocks assistant audio/transcript output and all tool execution at the Coordinator boundary.
+- A final addressed request beginning with Reprise/Hey Reprise activates assistance. Active follow-ups and corrections use the existing Coordinator without another wake phrase.
+- Addressed thanks/that's all, or standalone final ok/okay/done, return to standby. Generic thanks does not. An interim acknowledgement prefix cannot dismiss a longer corrected instruction.
+- Pending work is invalidated on dismissal. Dispatched outcomes remain recorded; no automatic compensating Google mutation is inferred.
+- Switching Live/Demo Live negotiates the backend gate while preserving the room and history. Wake phrases do not identify speakers or grant consequential-action consent.
 
-## Safety and receipts
+Gemini emits final input transcription at turn completion in the installed plugin. The standby generation is suppressed; activation schedules one response after the addressed request is committed. Proactive audio is not used as an authorization mechanism. Live microphone acceptance of the latest fix remains pending; offline boundary tests are not a substitute.
 
-- Default: `REPRISE_CALL_ASSIST_BACKEND=mock`. The existing GoogleWorkspace HTTP
-  adapter uses `httpx.MockTransport`, the mechanism already used by integration
-  tests. This client cannot make network requests. Calendar serialization,
-  dispatch authorization, error handling and trace emission still run normally.
-- Per-room mock resources and HTTP receipts persist in
-  `runs/<room>/mock-calendar.sqlite3` (`events` and `requests` tables). The normal
-  PlanStore remains `runs/productivity.sqlite3`, scoped to the room.
-- All Call Assist mutations require **Owner confirm** on the current plan revision.
-  Spoken names/affirmatives on a shared microphone are not owner authorization.
-  Corrections invalidate stale pending plans through the existing controller and
-  store; an old approval cannot authorize the replacement revision.
-- The same event editor shows the current pending action. Confirmation is hidden
-  during execution; an unsaved/superseded plan is never displayed as completed.
-  Already dispatched outcomes are handled by the existing receipt/undo pipeline.
-- Real Calendar is separately opt-in: both
-  `REPRISE_CALL_ASSIST_BACKEND=google` and
-  `REPRISE_CALL_ASSIST_GOOGLE_WRITES=1` are required before restarting the worker.
-  Existing OAuth is then used. Do not enable these for a mock-only demonstration.
-- Scripted preview data, playback timings, recordings and the legacy Google
-  Workspace mode are preserved. No new model or framework was added.
+## Optional Calendar-only backend
 
-## Implementation files
+Settings → Tools → **Calendar · Call Assist** selects the existing scoped Calendar backend. This is separate from presentation mode. It supports one Calendar event per plan and retains stricter local-owner confirmation because shared-microphone speech does not establish owner authority.
 
-- `src/reprise/call_assist.py`: scoped tools/prompt, owner-only plan preparation,
-  persistent mock Calendar transport using the existing Google adapter.
-- `src/reprise/agent.py`: session metadata selects this scoped productivity wiring.
-- `src/reprise/productivity.py`: owner-required action flag and atomic, revision-bound
-  dashboard approval; ordinary existing policies retain their defaults.
-- `src/reprise/demo_server.py`: Call Assist session configuration and approval body.
-- `demo/app.js`, `demo/phone.js`, `demo/index.html`: live event projection, native
-  microphone/audio/end controls, current-plan confirmation and separate mode.
-- `.env.example`: the two opt-in backend settings. Actual credential files unchanged.
+Default `REPRISE_CALL_ASSIST_BACKEND=mock` uses the real Google serialization/authorization code with `httpx.MockTransport`; it cannot send network requests. Resources and HTTP receipts persist in `runs/<room>/mock-calendar.sqlite3`. PlanStore remains room-scoped in `runs/productivity.sqlite3`.
 
-## Verification state — do not overclaim
+Real Calendar is opt-in: set both `REPRISE_CALL_ASSIST_BACKEND=google` and `REPRISE_CALL_ASSIST_GOOGLE_WRITES=1`, then restart the worker. Existing OAuth is used. Ordinary Google Workspace mode retains its normal risk-based policy; it does not acquire extra owner-confirmation clicks from the listening gate.
 
-A genuine browser microphone session was started in room
-`reprise-demo-a73ede6cfbf347`. The trace recorded the existing Gemini 3.8 Live
-model, Call Assist/mock mode, agent readiness and an actual Gemini connection
-handshake. Browser microphone publication and the LiveKit connection completed.
-No prerecorded/TTS input, authored tool events, test suite or benchmark was used.
+## Manual checkpoint
 
-The user requested that testing stop before completing the spoken correction and
-owner-confirmed write sequence. The microphone session was disconnected and the
-page reloaded. **The complete 5 PM → 6 PM microphone scenario is not verified.**
-Do not claim an E2E pass or a successful Calendar write from this attempt.
+1. In standby, say “Hey Karthick, what plans tomorrow?” Confirm a transcript, zero dispatches and zero assistant speech.
+2. Say “Hey Reprise, what plans tomorrow?” Confirm activation and a receipt-grounded read response.
+3. Correct an active request; inspect supersession and final arguments in the real trace.
+4. Say “Thanks, Reprise,” standalone “ok,” or “done”; confirm standby. Ordinary thanks should leave the active state unchanged.
+5. For the scoped mock Calendar flow, request a dated 5–5:30 PM event, correct it to 6–6:30 PM before owner confirmation, approve only the replacement, and inspect the persisted receipt for one 6 PM creation and no 5 PM resource.
 
-Evidence: `runs/reprise-demo-a73ede6cfbf347/events.jsonl` and the launcher logs.
-Backup of the preceding working files: `runs/live-call-assist-development/before-source.tar`.
-
-If explicitly requested later, the remaining human verification is: request a
-dated 5–5:30 PM event, correct it to 6–6:30 PM before approving, confirm only that
-replacement in the UI, and inspect the real trace/database for one successful
-creation and no 5 PM resource. This is pending, not an automated/faked result.
-
-No commit, push, new benchmark or Phase 5 work was performed.
+The earlier microphone connection was observed, but the complete corrected-write sequence was not completed. No end-to-end success is claimed for that attempt. Private traces and development snapshots remain local under `runs/`.

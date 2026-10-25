@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "selected": 100,
+  "completed": 100,
+  "incomplete_cases": [],
+  "voice_model": "gemini-3.8-live",
+  "official_score": null,
+  "historical_strict_reference": {
+    "passed": 77,
+    "selected": 100,
+    "note": "Historical run retained; no claim of improvement from incomplete current run"
+  },
+  "label": "Strict pinned FDB-v3 tool scoring",
+  "judge_model": null,
+  "passed": 78,
+  "completed_pass_rate": 0.78,
+  "selected_set_pass_rate_missing_as_fail": 0.78,
+  "unjudged": 0,
+  "breakdown": {
+    "domain": {
+      "ecommerce_support": {
+        "completed": 29,
+        "passed": 22,
+        "unjudged": 0
+      },
+      "finance_billing": {
+        "completed": 25,
+        "passed": 23,
+        "unjudged": 0
+      },
+      "housing_location": {
+        "completed": 26,
+        "passed": 19,
+        "unjudged": 0
+      },
+      "travel_identity": {
+        "completed": 20,
+        "passed": 14,
+        "unjudged": 0
+      }
+    },
+    "difficulty": {
+      "easy": {
+        "completed": 36,
+        "passed": 31,
+        "unjudged": 0
+      },
+      "hard": {
+        "completed": 30,
+        "passed": 21,
+        "unjudged": 0
+      },
+      "medium": {
+        "completed": 34,
+        "passed": 26,
+        "unjudged": 0
+      }
+    }
+  },
+  "infrastructure_errors": {},
+  "judge_errors": 0,
+  "argument_accuracy_macro": 0.8266800000000001,
+  "spoken_response_accuracy": 0.93,
+  "spoken_responses_judged": 100,
+  "trace_completeness": {
+    "closed": 100,
+    "unclosed_samples": [],
+    "note": "Scores use all observed calls and outcomes; missing closure is not fabricated"
+  },
+  "scores_provisional": false
+}

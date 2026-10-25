@@ -116,7 +116,7 @@ test('calendar preview stays explicitly unsaved until the sole 6 PM write is dis
   phone.show(frame.screen);
   const status=descendants(root).find(e=>e.className==='calendar-saving');
   if(['pending','paused','revising'].includes(frame.screen.saveState))assert.equal(status.textContent,'Not saved');
-  else if(frame.screen.saveState==='checking')assert.equal(status.textContent,'Checking…');
+  else if(frame.screen.saveState==='checking')assert.equal(status.textContent,'Rechecking 6 PM…');
   else assert.equal(status.textContent,'Saving…');
  }
 });

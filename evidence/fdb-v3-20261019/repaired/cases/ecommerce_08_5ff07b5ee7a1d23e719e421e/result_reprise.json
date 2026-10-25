@@ -1,0 +1,302 @@
+{
+  "sample": "ecommerce_08_5ff07b5ee7a1d23e719e421e",
+  "room": "original-vs-astra-20261019-gemma26-B-i007-r0-000-a0",
+  "id": "ecommerce_08",
+  "attempts": [
+    {
+      "room": "original-vs-astra-20261019-gemma26-B-i007-r0-000-a0",
+      "infrastructure_error": null,
+      "trace_closed": false,
+      "configuration_errors": []
+    }
+  ],
+  "example_id": "ecommerce_08",
+  "domain": "ecommerce_support",
+  "difficulty": "easy",
+  "actual_tool_calls": [
+    {
+      "function": "search_products",
+      "args": {
+        "query": "mechanical keyboard",
+        "max_price": 200
+      },
+      "timestamp_start": 1792350066.3333716,
+      "timestamp_end": 1792350066.3334281,
+      "outcome": "success",
+      "duration_s": 5.6368999935330066e-05,
+      "proposal_id": "1bc2d489c71d48728de8c1b28ff81d3f",
+      "provider_call_id": "call_6532423",
+      "request_id": "ef27902705b042f0bbf142f0e82ff703:1",
+      "trace_id": "ef27902705b042f0bbf142f0e82ff703"
+    }
+  ],
+  "evaluation": {
+    "passed": false,
+    "checks": {
+      "tool_selection": {
+        "passed": true,
+        "expected": [
+          "search_products"
+        ],
+        "actual": [
+          "search_products"
+        ],
+        "missing": [],
+        "unexpected": []
+      },
+      "argument_accuracy": {
+        "passed": false,
+        "details": [
+          {
+            "function": "search_products",
+            "passed": false,
+            "expected_args": {
+              "query": "mechanical keyboards",
+              "max_price": 200
+            },
+            "actual_args": {
+              "query": "mechanical keyboard",
+              "max_price": 200
+            },
+            "explanation": "Mismatch 'query': expected=mechanical keyboards, got=mechanical keyboard"
+          }
+        ]
+      }
+    },
+    "failure_reason": "Wrong arguments for: ['search_products']"
+  },
+  "passed": false,
+  "upstream_label_passed": false,
+  "execution_confirmed": true,
+  "infrastructure_error": null,
+  "transcript": "I found a mechanical keyboard Premium for 190.",
+  "transcript_source": "provider output transcription, not independent ASR",
+  "source_unchanged": true,
+  "trace_closed": true,
+  "trace_metrics": {
+    "event_counts": {
+      "session_started": 1,
+      "agent_state": 4,
+      "agent_ready": 1,
+      "speech_started": 6,
+      "model_metrics": 3,
+      "session_usage": 3,
+      "speech_ended": 6,
+      "transcript_received": 2,
+      "intent_revised": 1,
+      "intent_extended": 1,
+      "transcript_ignored": 1,
+      "conversation_item": 2,
+      "sdk_tool_lifecycle": 2,
+      "tool_raw_proposed": 1,
+      "tool_proposed": 1,
+      "controller_decision": 1,
+      "tool_prepared": 1,
+      "tool_dispatch": 1,
+      "tool_executed": 1,
+      "tool_result_delivered": 1,
+      "request_completed": 1,
+      "assistant_response": 1,
+      "session_closed": 1
+    },
+    "tool_outcomes": {
+      "success": 1
+    },
+    "external_api_outcomes": {},
+    "timings": {
+      "tool_duration_s": {
+        "count": 1,
+        "mean": 5.6368999935330066e-05,
+        "min": 5.6368999935330066e-05,
+        "max": 5.6368999935330066e-05,
+        "p50": 5.6368999935330066e-05,
+        "p95": 5.6368999935330066e-05
+      },
+      "external_api_duration_s": {
+        "count": 0,
+        "mean": null,
+        "min": null,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "gate_duration_s": {
+        "count": 1,
+        "mean": 0.975247047000039,
+        "min": 0.975247047000039,
+        "max": 0.975247047000039,
+        "p50": 0.975247047000039,
+        "p95": 0.975247047000039
+      },
+      "preparation_duration_s": {
+        "count": 1,
+        "mean": 5.8181999975204235e-05,
+        "min": 5.8181999975204235e-05,
+        "max": 5.8181999975204235e-05,
+        "p50": 5.8181999975204235e-05,
+        "p95": 5.8181999975204235e-05
+      },
+      "vad_to_assistant_state_s": {
+        "count": 1,
+        "mean": 2.1563990000000004,
+        "min": 2.1563990000000004,
+        "max": 2.1563990000000004,
+        "p50": 2.1563990000000004,
+        "p95": 2.1563990000000004
+      },
+      "interruption_to_state_stop_s": {
+        "count": 0,
+        "mean": null,
+        "min": null,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "sdk_ttft_s": {
+        "count": 1,
+        "mean": 0.0014214515686035156,
+        "min": 0.0014214515686035156,
+        "max": 0.0014214515686035156,
+        "p50": 0.0014214515686035156,
+        "p95": 0.0014214515686035156
+      }
+    },
+    "user_interruptions_observed": 0,
+    "interrupted_assistant_messages": 0,
+    "sdk_usage_latest": {
+      "model_usage": [
+        {
+          "type": "llm_usage",
+          "provider": "Gemini",
+          "model": "gemini-3.8-live",
+          "input_tokens": 6039,
+          "input_cached_tokens": 0,
+          "input_cache_creation_tokens": 0,
+          "input_audio_tokens": 1202,
+          "input_cached_audio_tokens": 0,
+          "input_text_tokens": 3883,
+          "input_cached_text_tokens": 0,
+          "input_image_tokens": 0,
+          "input_cached_image_tokens": 0,
+          "output_tokens": 121,
+          "output_audio_tokens": 100,
+          "output_text_tokens": 0,
+          "output_reasoning_tokens": 0,
+          "session_duration": 0.0
+        }
+      ]
+    },
+    "sdk_realtime_requests": [
+      {
+        "type": "realtime_model_metrics",
+        "label": "livekit.plugins.google.realtime.realtime_api.RealtimeModel",
+        "request_id": "GR_622733a30a00",
+        "timestamp": 1792350065.327396,
+        "duration": 0.0120697021484375,
+        "session_duration": 0.0,
+        "ttft": -1.0,
+        "cancelled": false,
+        "input_tokens": 2984,
+        "output_tokens": 21,
+        "total_tokens": 3005,
+        "tokens_per_second": 1739.8938053097345,
+        "input_token_details": {
+          "audio_tokens": 601,
+          "text_tokens": 1916,
+          "image_tokens": 0,
+          "cached_tokens": 0,
+          "cached_tokens_details": {
+            "audio_tokens": 0,
+            "text_tokens": 0,
+            "image_tokens": 0
+          }
+        },
+        "output_token_details": {
+          "text_tokens": 0,
+          "audio_tokens": 0,
+          "image_tokens": 0
+        },
+        "acquire_time": 0.0,
+        "connection_reused": false,
+        "metadata": {
+          "model_name": "gemini-3.8-live",
+          "model_provider": "Gemini"
+        }
+      },
+      {
+        "type": "realtime_model_metrics",
+        "label": "livekit.plugins.google.realtime.realtime_api.RealtimeModel",
+        "request_id": "GR_45d28f148b4d",
+        "timestamp": 1792350066.8378193,
+        "duration": 3.741238832473755,
+        "session_duration": 0.0,
+        "ttft": 0.0014214515686035156,
+        "cancelled": false,
+        "input_tokens": 3055,
+        "output_tokens": 100,
+        "total_tokens": 3155,
+        "tokens_per_second": 26.72911419928749,
+        "input_token_details": {
+          "audio_tokens": 601,
+          "text_tokens": 1967,
+          "image_tokens": 0,
+          "cached_tokens": 0,
+          "cached_tokens_details": {
+            "audio_tokens": 0,
+            "text_tokens": 0,
+            "image_tokens": 0
+          }
+        },
+        "output_token_details": {
+          "text_tokens": 0,
+          "audio_tokens": 100,
+          "image_tokens": 0
+        },
+        "acquire_time": 0.0,
+        "connection_reused": false,
+        "metadata": {
+          "model_name": "gemini-3.8-live",
+          "model_provider": "Gemini"
+        }
+      }
+    ],
+    "trace_closed": true,
+    "official_audio_alignment_available": false,
+    "timing_note": "VAD and SDK state transitions are local proxies, not listener playback or upstream ASR alignment.",
+    "billable_cost": null
+  },
+  "trace_file": "events.jsonl",
+  "in_flight_dispatches": 0,
+  "model": "gemini-3.8-live",
+  "evaluation_method": "pinned exact, no semantic judge",
+  "observed_session": {
+    "schema_version": 2,
+    "trace_id": "ef27902705b042f0bbf142f0e82ff703",
+    "event_id": "a2a3b22ea2bf42f386073bab51b151ed",
+    "sequence": 1,
+    "event": "session_started",
+    "room": "original-vs-astra-20261019-gemma26-B-i007-r0-000-a0",
+    "elapsed_s": 0.008447,
+    "monotonic_ns": 679491774596,
+    "wall_time": 1792350047.8788908,
+    "model": "gemini-3.8-live",
+    "policy": "guarded",
+    "settle_ms": 1000,
+    "write_settle_ms": 900,
+    "mode": "benchmark",
+    "settings": {
+      "model": "gemini-3.8-live",
+      "policy": "guarded",
+      "settle_ms": 1000,
+      "write_settle_ms": 900,
+      "gate_timeout_s": 30.0,
+      "tool_timeout_s": 20.0,
+      "latency_profile": "instant",
+      "mode": "benchmark"
+    },
+    "source_sha256": "93562be1d24da1e194c66e804b515dbb69fcbc4b54bf340f088a7357ccbeb258",
+    "vad_silence_ms": 650,
+    "audio_clock_origin": "not synchronized to client stream"
+  },
+  "final_trace_sha256": "89db5f2e8b32c7d46af677cdc812c49e1398bc1e2b58272eaa6ab1c115182424"
+}

@@ -208,13 +208,13 @@ async def test_demo_local_messages_queue_while_previous_generation_runs(tmp_path
     await client.aclose()
 
 
-async def test_model_http_error_is_not_retried():
+async def test_transient_model_http_error_has_bounded_retries():
     requests = []
     async with httpx.AsyncClient(transport=httpx.MockTransport(
             lambda r: requests.append(r) or httpx.Response(503))) as client:
         with pytest.raises(httpx.HTTPStatusError):
             await LocalPlanner(client=client).complete([], PRODUCTIVITY_TOOLS)
-    assert len(requests) == 1
+    assert len(requests) == 3
 
 
 async def test_unknown_write_remains_unknown_without_retry_or_success_claim(tmp_path):

@@ -1,0 +1,149 @@
+{
+  "selected": 100,
+  "inference_available": 100,
+  "evaluated": 100,
+  "semantic_evaluation_complete": true,
+  "strict_passed": 78,
+  "strict_recomputed_passed": 78,
+  "strict_pass_rate": 0.78,
+  "semantic_passed": 82,
+  "semantic_pass_rate": 0.82,
+  "strict_failures": [
+    "ecommerce_13_5ff07b5ee7a1d23e719e421e",
+    "housing_21_66c4f3cb14cbfc4db836bd4e",
+    "housing_06_5f4a4da1575d605c43bef871",
+    "housing_13_5f4a4da1575d605c43bef871",
+    "travel_21_69a9cf80f4d7668d5c815038",
+    "finance_14_5f4a4da1575d605c43bef871",
+    "ecommerce_12_6998abd731d2ec50d067d5bd",
+    "travel_02_5e3c1fbece3a7b000a6fd95a",
+    "housing_24_65e8cf8f4c7424fa062e54a3",
+    "ecommerce_14_5ff07b5ee7a1d23e719e421e",
+    "ecommerce_08_61517db6a7589569521b2356",
+    "ecommerce_08_5ff07b5ee7a1d23e719e421e",
+    "ecommerce_10_6998abd731d2ec50d067d5bd",
+    "travel_20_62a885d5b6af18b3d4579e1b",
+    "ecommerce_21_69a9cf80f4d7668d5c815038",
+    "housing_10_66f59c766e7e22e1f90d08f6",
+    "housing_11_62a885d5b6af18b3d4579e1b",
+    "housing_18_66c4f3cb14cbfc4db836bd4e",
+    "travel_24_695bd157114f0d2317f88617",
+    "finance_20_66c4f3cb14cbfc4db836bd4e",
+    "travel_07_5ff07b5ee7a1d23e719e421e",
+    "travel_19_695bd157114f0d2317f88617"
+  ],
+  "semantic_failures": [
+    "ecommerce_13_5ff07b5ee7a1d23e719e421e",
+    "housing_21_66c4f3cb14cbfc4db836bd4e",
+    "housing_13_5f4a4da1575d605c43bef871",
+    "finance_14_5f4a4da1575d605c43bef871",
+    "housing_24_69a9cf80f4d7668d5c815038",
+    "ecommerce_12_6998abd731d2ec50d067d5bd",
+    "travel_02_5e3c1fbece3a7b000a6fd95a",
+    "housing_24_65e8cf8f4c7424fa062e54a3",
+    "housing_22_695bd157114f0d2317f88617",
+    "ecommerce_14_5ff07b5ee7a1d23e719e421e",
+    "housing_25_66f59c766e7e22e1f90d08f6",
+    "travel_20_62a885d5b6af18b3d4579e1b",
+    "ecommerce_21_69a9cf80f4d7668d5c815038",
+    "housing_11_62a885d5b6af18b3d4579e1b",
+    "housing_18_66c4f3cb14cbfc4db836bd4e",
+    "travel_24_695bd157114f0d2317f88617",
+    "finance_20_66c4f3cb14cbfc4db836bd4e",
+    "travel_19_695bd157114f0d2317f88617"
+  ],
+  "unresolved_judgments": [],
+  "not_evaluated": [],
+  "infrastructure_failures": [],
+  "failed_inference_attempts": [
+    {
+      "sample": "finance_02_6998abd731d2ec50d067d5bd",
+      "room": "original-vs-astra-20261019-gemma26-B-i031-r0-000-a0",
+      "infrastructure_error": "client_exit_-6",
+      "trace_closed": false,
+      "configuration_errors": []
+    }
+  ],
+  "missing_response_transcripts": [],
+  "tool_metrics": {
+    "schema_version": 1,
+    "selected": 100,
+    "completed": 100,
+    "incomplete_cases": [],
+    "voice_model": "gemini-3.8-live",
+    "official_score": null,
+    "historical_strict_reference": {
+      "passed": 77,
+      "selected": 100,
+      "note": "Historical run retained; no claim of improvement from incomplete current run"
+    },
+    "tool_selection": {
+      "micro_precision": 0.993103448275862,
+      "micro_recall": 0.96,
+      "micro_f1": 0.976271186440678,
+      "macro_precision": 0.995,
+      "macro_recall": 0.97,
+      "macro_f1": 0.97301,
+      "matched": 144,
+      "expected": 150,
+      "actual": 145
+    },
+    "strict_argument_accuracy_micro": 0.8133333333333334,
+    "semantic_argument_accuracy_micro_judged_only": 0.8466666666666667,
+    "semantic_argument_unjudged": 0,
+    "argument_failure_categories": {
+      "missing_call": 6,
+      "extra_call": 1,
+      "value_mismatch": 21,
+      "missing_call_argument_zero": 6,
+      "missing_argument": 1
+    },
+    "latencies": {
+      "controller_gate_s": {
+        "count": 160,
+        "mean": 1.8839495355000047,
+        "min": 7.811899968146463e-05,
+        "max": 17.253575555000225,
+        "p50": 0.980988979000017,
+        "p95": 9.547484118000284
+      },
+      "tool_execution_s": {
+        "count": 145,
+        "mean": 6.178760689824136e-05,
+        "min": 2.1547999949689256e-05,
+        "max": 0.00018786800001180382,
+        "p50": 5.2714999810632435e-05,
+        "p95": 0.00012613199987754342
+      },
+      "sdk_ttft_s": {
+        "count": 127,
+        "mean": 0.013864376413540578,
+        "min": 0.0005083084106445312,
+        "max": 0.5042250156402588,
+        "p50": 0.000762939453125,
+        "p95": 0.04992318153381348
+      }
+    },
+    "official_audio_response_latency_s": null,
+    "task_completion_latency_s": null,
+    "latency_limitation": "SDK TTFT and monotonic tool/gate durations only; no aligned independent ASR",
+    "billing_visibility": null,
+    "trace_completeness": {
+      "closed": 100,
+      "unclosed_samples": [],
+      "note": "Scores use all observed calls and outcomes; missing closure is not fabricated"
+    },
+    "scores_provisional": false
+  },
+  "tool_execution_duration_from_saved_call_wall_timestamps_s": {
+    "count": 145,
+    "mean": 6.216476703512257e-05,
+    "min": 2.1696090698242188e-05,
+    "max": 0.00018787384033203125,
+    "p50": 5.2928924560546875e-05,
+    "p95": 0.0001266002655029297
+  },
+  "latency_caveat": "FDB mock tool durations and recorded SDK/controller timings only. No independent aligned ASR; official audio response and task completion latencies remain unavailable.",
+  "strict_report": "/home/naithick/Prism/samsung-prism-test/runs/original-vs-astra-20261019-gemma26-B/strict-evaluation.json",
+  "semantic_report": "/home/naithick/Prism/samsung-prism-test/runs/original-vs-astra-20261019-gemma26-B/gemma-semantic-evaluation.json"
+}

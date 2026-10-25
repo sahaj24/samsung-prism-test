@@ -16,4 +16,4 @@ The working demo retains Gemini Live, LiveKit, the two-panel UI and existing Goo
 
 Start only after the Phase 4 manual checkpoint is accepted. Combine verified flows and distinguish desktop/API evidence from phone observations. No native Bixby integration, Samsung Reminder or timed Task notification support is claimed.
 
-No automatic commit, push or Phase 5 development is authorized by the current Phase 4 implementation request.
+Phase 5 remains a separate development decision after manual acceptance. Publishing the current repository does not start it.

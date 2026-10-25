@@ -74,3 +74,29 @@ async def test_phone_preview_script_is_served_as_javascript():
     assert response.path == demo_server.DEMO / 'phone.js'
     assert response.path.is_file()
     assert '/phone.js' in {route.path for route in demo_server.app.routes}
+
+
+@pytest.mark.parametrize('presentation', ['live', 'demo-live'])
+@pytest.mark.asyncio
+async def test_session_carries_activation_contract_to_room_and_browser(presentation, monkeypatch):
+    from types import SimpleNamespace
+    captured = []
+    class LiveKit:
+        room = SimpleNamespace()
+        async def __aenter__(self):
+            async def create_room(request):
+                captured.append(json.loads(request.metadata))
+            self.room.create_room = create_room
+            return self
+        async def __aexit__(self, *args):
+            pass
+    monkeypatch.setattr(demo_server.api, 'LiveKitAPI', LiveKit)
+    monkeypatch.setattr(demo_server.Settings, 'from_env', lambda: None)
+    monkeypatch.setenv('LIVEKIT_URL', 'wss://example.invalid')
+    monkeypatch.setenv('LIVEKIT_API_KEY', 'test-key')
+    monkeypatch.setenv('LIVEKIT_API_SECRET', 's' * 32)
+    monkeypatch.setattr(demo_server, 'issued', set())
+    response = await demo_server.session(mode='productivity', planner='gemini', presentation=presentation)
+    assert captured == [{'reprise_mode': 'productivity', 'presentation': presentation, 'activation_version': 2}]
+    assert response['presentation'] == presentation
+    assert response['activation_version'] == 2

@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "selected": 100,
+  "completed": 100,
+  "incomplete_cases": [],
+  "voice_model": "gemini-3.8-live",
+  "official_score": null,
+  "historical_strict_reference": {
+    "passed": 77,
+    "selected": 100,
+    "note": "Historical run retained; no claim of improvement from incomplete current run"
+  },
+  "tool_selection": {
+    "micro_precision": 0.993103448275862,
+    "micro_recall": 0.96,
+    "micro_f1": 0.976271186440678,
+    "macro_precision": 0.995,
+    "macro_recall": 0.97,
+    "macro_f1": 0.97301,
+    "matched": 144,
+    "expected": 150,
+    "actual": 145
+  },
+  "strict_argument_accuracy_micro": 0.8133333333333334,
+  "semantic_argument_accuracy_micro_judged_only": 0.8466666666666667,
+  "semantic_argument_unjudged": 0,
+  "argument_failure_categories": {
+    "missing_call": 6,
+    "extra_call": 1,
+    "value_mismatch": 21,
+    "missing_call_argument_zero": 6,
+    "missing_argument": 1
+  },
+  "latencies": {
+    "controller_gate_s": {
+      "count": 160,
+      "mean": 1.8839495355000047,
+      "min": 7.811899968146463e-05,
+      "max": 17.253575555000225,
+      "p50": 0.980988979000017,
+      "p95": 9.547484118000284
+    },
+    "tool_execution_s": {
+      "count": 145,
+      "mean": 6.178760689824136e-05,
+      "min": 2.1547999949689256e-05,
+      "max": 0.00018786800001180382,
+      "p50": 5.2714999810632435e-05,
+      "p95": 0.00012613199987754342
+    },
+    "sdk_ttft_s": {
+      "count": 127,
+      "mean": 0.013864376413540578,
+      "min": 0.0005083084106445312,
+      "max": 0.5042250156402588,
+      "p50": 0.000762939453125,
+      "p95": 0.04992318153381348
+    }
+  },
+  "official_audio_response_latency_s": null,
+  "task_completion_latency_s": null,
+  "latency_limitation": "SDK TTFT and monotonic tool/gate durations only; no aligned independent ASR",
+  "billing_visibility": null,
+  "trace_completeness": {
+    "closed": 100,
+    "unclosed_samples": [],
+    "note": "Scores use all observed calls and outcomes; missing closure is not fabricated"
+  },
+  "scores_provisional": false
+}

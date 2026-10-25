@@ -95,6 +95,7 @@ CORRECTION = re.compile(
 class Coordinator:
     def __init__(self, backend: Backend, trace: Trace, settings: Settings):
         self.backend, self.trace, self.settings = backend, trace, settings
+        self.activation = None
         self.revision = 0
         self.transaction = 0
         self.speaking = False
@@ -127,10 +128,25 @@ class Coordinator:
         self._recovery_notices = set()
         self._grounding_notices = set()
 
+    def suspend_pending(self, reason):
+        """Close an assistance interval without cancelling dispatched operations."""
+        self.revision += 1
+        for op in list(self._known_operations()):
+            if not op.dispatched:
+                self._supersede(op)
+        suspend = getattr(self.backend, "suspend_pending", None)
+        if suspend:
+            suspend(self.revision)
+        self.active_request = False
+        self.input_final = False
+        self.trace.event("assistance_suspended", reason=reason, revision=self.revision)
+
     def speech_started(self):
         if self.speaking:
             return
         self.speaking = True
+        if self.activation:
+            self.activation.speech_started()
         # Acoustic activity pauses dispatch; only transcript evidence can change
         # commitment. A VAD pulse need not produce another provider transcript.
         self.last_change = time.monotonic()
@@ -140,6 +156,8 @@ class Coordinator:
         if not self.speaking:
             return
         self.speaking = False
+        if self.activation:
+            self.activation.speech_ended()
         self.last_change = time.monotonic()
         self.trace.event("speech_ended", revision=self.revision)
 
@@ -148,6 +166,12 @@ class Coordinator:
     ):
         text = text.strip()
         if not text:
+            return
+        if self.activation and not self.activation.observe(
+            text, is_final=is_final, source=source, item_id=item_id, event_time=event_time
+        ):
+            self.trace.event("transcript_received", text=text, is_final=is_final,
+                             source=source, item_id=item_id, activation="standby")
             return
         known_input = self._input_items.get(item_id)
         stale = (
@@ -661,6 +685,11 @@ class Coordinator:
         provider_call_id=None,
         response_id=None,
     ):
+        if self.activation and not self.activation.allows_tools:
+            async def blocked():
+                self.activation.check()
+                raise Superseded("Proposal was made in standby.")
+            return blocked()
         # Reserve proposal order and input ownership before coroutine scheduling.
         # `interrupted` describes assistant playback, not the user's intent.
         self._proposal_sequence += 1
@@ -928,6 +957,8 @@ class Coordinator:
                 if any(not self._valid_source(source, fresh=op.writes) for source in op.dependencies):
                     raise InvalidCall("A prerequisite changed before dispatch; re-plan from current results.")
                 self._check_references(op.spec, op.args, self._inputs[op.input_id])
+            if self.activation:
+                self.activation.check()
             op.dispatched = True
             op.state = "dispatched"
             self.trace.event(

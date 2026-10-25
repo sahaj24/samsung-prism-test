@@ -42,3 +42,7 @@ There is no cross-service transaction. A Google timeout after dispatch can leave
 The local demo chooses mode in room metadata. Workspace implementation changes do not replace the original benchmark tool schemas. Hosted Gemini and LiveKit are required; no local inference GPU is used.
 
 See [execution safety](HARDENING.md), [Workspace setup](PRODUCTIVITY.md), and [evaluation commands](BENCHMARK.md).
+
+## Optional call-listening gate
+
+`CallActivation` guards Demo Live at proposal admission and immediately before dispatch. A versioned browser/server/worker handshake must confirm the backend presentation before microphone publication. Demo rooms with missing or obsolete metadata default to standby; ordinary Live is explicitly negotiated. Standby drains and suppresses assistant output while preserving input transcription/context. Final addressed requests open an activation interval; dismissal invalidates pending plans without cancelling dispatched receipts. Response epochs prevent standby generations from acquiring later activation authority. See [call listening](LIVE_CALL_ASSIST.md).

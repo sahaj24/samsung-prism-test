@@ -1,13 +1,23 @@
 """LiveKit event wiring kept independent of transport/model construction."""
 
+import asyncio
+
 from dataclasses import asdict, is_dataclass
 
 
 def attach_session_events(session, coordinator):
     trace = coordinator.trace
+    activation = getattr(coordinator, "activation", None)
+
+    @session.on("speech_created")
+    def speech_created(event):
+        if activation:
+            activation.register_response(event.speech_handle.id)
+
 
     @session.on("user_input_transcribed")
     def transcript(event):
+        was_standby = activation and activation.enabled and activation.state == "standby"
         coordinator.observe_transcript(
             event.transcript,
             is_final=event.is_final,
@@ -15,6 +25,18 @@ def attach_session_events(session, coordinator):
             item_id=getattr(event, "item_id", None),
             event_time=getattr(event, "created_at", None),
         )
+        if was_standby and activation.allows_tools and event.is_final:
+            epoch = activation.epoch
+            def respond_to_committed_request():
+                if activation.enabled and activation.allows_tools and activation.epoch == epoch:
+                    session.generate_reply(instructions=(
+                        "Respond to the user's latest addressed request, using the recent conversation. "
+                        "Earlier assistant output generated in standby was not delivered. "
+                        "Use the controller tools and actual receipts; do not assume that work was done."
+                    ))
+            # Gemini emits final transcription at turn_complete, before it closes
+            # the old generation. Schedule after that synchronous callback finishes.
+            asyncio.get_running_loop().call_soon(respond_to_committed_request)
 
     @session.on("conversation_item_added")
     def conversation(event):
@@ -29,6 +51,12 @@ def attach_session_events(session, coordinator):
                 item_id=getattr(item, "id", None),
                 event_time=getattr(item, "created_at", None),
             )
+        if item.role == "assistant" and activation:
+            speech = getattr(session, "current_speech", None)
+            if not activation.allows_response(getattr(speech, "id", None)):
+                trace.event("assistant_output_suppressed", message_id=getattr(item, "id", None),
+                            text=item.text_content, state=activation.state)
+                return
         trace.event(
             "conversation_item",
             role=item.role,

@@ -1,0 +1,375 @@
+{
+  "sample": "ecommerce_14_5ff07b5ee7a1d23e719e421e",
+  "room": "original-vs-astra-20261019-gemma26-B-i015-r0-000-a0",
+  "id": "ecommerce_14",
+  "attempts": [
+    {
+      "room": "original-vs-astra-20261019-gemma26-B-i015-r0-000-a0",
+      "infrastructure_error": null,
+      "trace_closed": false,
+      "configuration_errors": []
+    }
+  ],
+  "example_id": "ecommerce_14",
+  "domain": "ecommerce_support",
+  "difficulty": "medium",
+  "actual_tool_calls": [
+    {
+      "function": "search_products",
+      "args": {
+        "query": "P-5-2"
+      },
+      "timestamp_start": 1792350351.617528,
+      "timestamp_end": 1792350351.6175766,
+      "outcome": "success",
+      "duration_s": 4.829600004541135e-05,
+      "proposal_id": "8b95323b0dc844e59e3a2d064840dc18",
+      "provider_call_id": "call_6538457",
+      "request_id": "22a2adf43b004f9eaa89f2384eb6800f:1",
+      "trace_id": "22a2adf43b004f9eaa89f2384eb6800f"
+    },
+    {
+      "function": "add_to_cart",
+      "args": {
+        "quantity": 2,
+        "product_id": "PROD1"
+      },
+      "timestamp_start": 1792350352.1532812,
+      "timestamp_end": 1792350352.1533725,
+      "outcome": "success",
+      "duration_s": 9.075299999494746e-05,
+      "proposal_id": "6b6cdb93566f4e828934ea7db89a5a4c",
+      "provider_call_id": "call_6538461",
+      "request_id": "22a2adf43b004f9eaa89f2384eb6800f:1",
+      "trace_id": "22a2adf43b004f9eaa89f2384eb6800f"
+    }
+  ],
+  "evaluation": {
+    "passed": false,
+    "checks": {
+      "tool_selection": {
+        "passed": false,
+        "expected": [
+          "add_to_cart"
+        ],
+        "actual": [
+          "search_products",
+          "add_to_cart"
+        ],
+        "missing": [],
+        "unexpected": [
+          "search_products"
+        ]
+      }
+    },
+    "failure_reason": "Unexpected tools: ['search_products']"
+  },
+  "passed": false,
+  "upstream_label_passed": false,
+  "execution_confirmed": true,
+  "infrastructure_error": null,
+  "transcript": "I've added two of the P-5-2 Premium items to your cart.",
+  "transcript_source": "provider output transcription, not independent ASR",
+  "source_unchanged": true,
+  "trace_closed": true,
+  "trace_metrics": {
+    "event_counts": {
+      "session_started": 1,
+      "agent_state": 8,
+      "agent_ready": 1,
+      "speech_started": 6,
+      "model_metrics": 5,
+      "session_usage": 5,
+      "speech_ended": 6,
+      "transcript_received": 2,
+      "intent_revised": 1,
+      "intent_extended": 1,
+      "transcript_ignored": 1,
+      "conversation_item": 2,
+      "sdk_tool_lifecycle": 6,
+      "tool_raw_proposed": 3,
+      "tool_proposed": 3,
+      "tool_validation_failed": 1,
+      "tool_rejected": 1,
+      "controller_decision": 2,
+      "tool_prepared": 2,
+      "tool_dispatch": 2,
+      "tool_executed": 2,
+      "tool_result_delivered": 2,
+      "request_completed": 1,
+      "assistant_response": 1,
+      "session_closed": 1
+    },
+    "tool_outcomes": {
+      "success": 2
+    },
+    "external_api_outcomes": {},
+    "timings": {
+      "tool_duration_s": {
+        "count": 2,
+        "mean": 6.95245000201794e-05,
+        "min": 4.829600004541135e-05,
+        "max": 9.075299999494746e-05,
+        "p50": 4.829600004541135e-05,
+        "p95": 9.075299999494746e-05
+      },
+      "external_api_duration_s": {
+        "count": 0,
+        "mean": null,
+        "min": null,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "gate_duration_s": {
+        "count": 2,
+        "mean": 0.00015808500000957793,
+        "min": 0.00015789099995799916,
+        "max": 0.0001582790000611567,
+        "p50": 0.00015789099995799916,
+        "p95": 0.0001582790000611567
+      },
+      "preparation_duration_s": {
+        "count": 2,
+        "mean": 0.00047646400003031886,
+        "min": 0.0002733850000140592,
+        "max": 0.0006795430000465785,
+        "p50": 0.0002733850000140592,
+        "p95": 0.0006795430000465785
+      },
+      "vad_to_assistant_state_s": {
+        "count": 1,
+        "mean": 3.3785469999999975,
+        "min": 3.3785469999999975,
+        "max": 3.3785469999999975,
+        "p50": 3.3785469999999975,
+        "p95": 3.3785469999999975
+      },
+      "interruption_to_state_stop_s": {
+        "count": 0,
+        "mean": null,
+        "min": null,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "sdk_ttft_s": {
+        "count": 1,
+        "mean": 0.0005083084106445312,
+        "min": 0.0005083084106445312,
+        "max": 0.0005083084106445312,
+        "p50": 0.0005083084106445312,
+        "p95": 0.0005083084106445312
+      }
+    },
+    "user_interruptions_observed": 0,
+    "interrupted_assistant_messages": 0,
+    "sdk_usage_latest": {
+      "model_usage": [
+        {
+          "type": "llm_usage",
+          "provider": "Gemini",
+          "model": "gemini-3.8-live",
+          "input_tokens": 12783,
+          "input_cached_tokens": 0,
+          "input_cache_creation_tokens": 0,
+          "input_audio_tokens": 2784,
+          "input_cached_audio_tokens": 0,
+          "input_text_tokens": 8015,
+          "input_cached_text_tokens": 0,
+          "input_image_tokens": 0,
+          "input_cached_image_tokens": 0,
+          "output_tokens": 176,
+          "output_audio_tokens": 114,
+          "output_text_tokens": 0,
+          "output_reasoning_tokens": 0,
+          "session_duration": 0.0
+        }
+      ]
+    },
+    "sdk_realtime_requests": [
+      {
+        "type": "realtime_model_metrics",
+        "label": "livekit.plugins.google.realtime.realtime_api.RealtimeModel",
+        "request_id": "GR_49f331e8918e",
+        "timestamp": 1792350350.0457752,
+        "duration": 0.024013042449951172,
+        "session_duration": 0.0,
+        "ttft": -1.0,
+        "cancelled": false,
+        "input_tokens": 3090,
+        "output_tokens": 24,
+        "total_tokens": 3114,
+        "tokens_per_second": 999.4568597470164,
+        "input_token_details": {
+          "audio_tokens": 696,
+          "text_tokens": 1927,
+          "image_tokens": 0,
+          "cached_tokens": 0,
+          "cached_tokens_details": {
+            "audio_tokens": 0,
+            "text_tokens": 0,
+            "image_tokens": 0
+          }
+        },
+        "output_token_details": {
+          "text_tokens": 0,
+          "audio_tokens": 0,
+          "image_tokens": 0
+        },
+        "acquire_time": 0.0,
+        "connection_reused": false,
+        "metadata": {
+          "model_name": "gemini-3.8-live",
+          "model_provider": "Gemini"
+        }
+      },
+      {
+        "type": "realtime_model_metrics",
+        "label": "livekit.plugins.google.realtime.realtime_api.RealtimeModel",
+        "request_id": "GR_e4524e082ea8",
+        "timestamp": 1792350351.6075413,
+        "duration": 0.003174304962158203,
+        "session_duration": 0.0,
+        "ttft": -1.0,
+        "cancelled": false,
+        "input_tokens": 3159,
+        "output_tokens": 16,
+        "total_tokens": 3175,
+        "tokens_per_second": 5040.473486555506,
+        "input_token_details": {
+          "audio_tokens": 696,
+          "text_tokens": 1976,
+          "image_tokens": 0,
+          "cached_tokens": 0,
+          "cached_tokens_details": {
+            "audio_tokens": 0,
+            "text_tokens": 0,
+            "image_tokens": 0
+          }
+        },
+        "output_token_details": {
+          "text_tokens": 0,
+          "audio_tokens": 0,
+          "image_tokens": 0
+        },
+        "acquire_time": 0.0,
+        "connection_reused": false,
+        "metadata": {
+          "model_name": "gemini-3.8-live",
+          "model_provider": "Gemini"
+        }
+      },
+      {
+        "type": "realtime_model_metrics",
+        "label": "livekit.plugins.google.realtime.realtime_api.RealtimeModel",
+        "request_id": "GR_c4275e287d00",
+        "timestamp": 1792350352.137575,
+        "duration": 0.0034248828887939453,
+        "session_duration": 0.0,
+        "ttft": -1.0,
+        "cancelled": false,
+        "input_tokens": 3230,
+        "output_tokens": 22,
+        "total_tokens": 3252,
+        "tokens_per_second": 6423.577305951967,
+        "input_token_details": {
+          "audio_tokens": 696,
+          "text_tokens": 2029,
+          "image_tokens": 0,
+          "cached_tokens": 0,
+          "cached_tokens_details": {
+            "audio_tokens": 0,
+            "text_tokens": 0,
+            "image_tokens": 0
+          }
+        },
+        "output_token_details": {
+          "text_tokens": 0,
+          "audio_tokens": 0,
+          "image_tokens": 0
+        },
+        "acquire_time": 0.0,
+        "connection_reused": false,
+        "metadata": {
+          "model_name": "gemini-3.8-live",
+          "model_provider": "Gemini"
+        }
+      },
+      {
+        "type": "realtime_model_metrics",
+        "label": "livekit.plugins.google.realtime.realtime_api.RealtimeModel",
+        "request_id": "GR_4883bde7349d",
+        "timestamp": 1792350352.7564914,
+        "duration": 4.330028057098389,
+        "session_duration": 0.0,
+        "ttft": 0.0005083084106445312,
+        "cancelled": false,
+        "input_tokens": 3304,
+        "output_tokens": 114,
+        "total_tokens": 3418,
+        "tokens_per_second": 26.32777397668711,
+        "input_token_details": {
+          "audio_tokens": 696,
+          "text_tokens": 2083,
+          "image_tokens": 0,
+          "cached_tokens": 0,
+          "cached_tokens_details": {
+            "audio_tokens": 0,
+            "text_tokens": 0,
+            "image_tokens": 0
+          }
+        },
+        "output_token_details": {
+          "text_tokens": 0,
+          "audio_tokens": 114,
+          "image_tokens": 0
+        },
+        "acquire_time": 0.0,
+        "connection_reused": false,
+        "metadata": {
+          "model_name": "gemini-3.8-live",
+          "model_provider": "Gemini"
+        }
+      }
+    ],
+    "trace_closed": true,
+    "official_audio_alignment_available": false,
+    "timing_note": "VAD and SDK state transitions are local proxies, not listener playback or upstream ASR alignment.",
+    "billable_cost": null
+  },
+  "trace_file": "events.jsonl",
+  "in_flight_dispatches": 0,
+  "model": "gemini-3.8-live",
+  "evaluation_method": "pinned exact, no semantic judge",
+  "observed_session": {
+    "schema_version": 2,
+    "trace_id": "22a2adf43b004f9eaa89f2384eb6800f",
+    "event_id": "f226de18d0104c068e62ae08eaf7abdc",
+    "sequence": 1,
+    "event": "session_started",
+    "room": "original-vs-astra-20261019-gemma26-B-i015-r0-000-a0",
+    "elapsed_s": 0.008841,
+    "monotonic_ns": 959377876808,
+    "wall_time": 1792350327.764993,
+    "model": "gemini-3.8-live",
+    "policy": "guarded",
+    "settle_ms": 1000,
+    "write_settle_ms": 900,
+    "mode": "benchmark",
+    "settings": {
+      "model": "gemini-3.8-live",
+      "policy": "guarded",
+      "settle_ms": 1000,
+      "write_settle_ms": 900,
+      "gate_timeout_s": 30.0,
+      "tool_timeout_s": 20.0,
+      "latency_profile": "instant",
+      "mode": "benchmark"
+    },
+    "source_sha256": "93562be1d24da1e194c66e804b515dbb69fcbc4b54bf340f088a7357ccbeb258",
+    "vad_silence_ms": 650,
+    "audio_clock_origin": "not synchronized to client stream"
+  },
+  "final_trace_sha256": "08028b1e2d82638d789087f0103b5069f11a9800036a1d53400eb830033502a5"
+}

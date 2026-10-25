@@ -1,0 +1,302 @@
+{
+  "sample": "travel_07_5ff07b5ee7a1d23e719e421e",
+  "room": "original-vs-astra-20261019-gemma26-B-i085-r0-000-a0",
+  "id": "travel_07",
+  "attempts": [
+    {
+      "room": "original-vs-astra-20261019-gemma26-B-i085-r0-000-a0",
+      "infrastructure_error": null,
+      "trace_closed": false,
+      "configuration_errors": []
+    }
+  ],
+  "example_id": "travel_07",
+  "domain": "travel_identity",
+  "difficulty": "easy",
+  "actual_tool_calls": [
+    {
+      "function": "update_identity_doc",
+      "args": {
+        "doc_type": "driver_license",
+        "doc_number": "D-L-5-5-5"
+      },
+      "timestamp_start": 1792352894.1632245,
+      "timestamp_end": 1792352894.1632717,
+      "outcome": "success",
+      "duration_s": 4.714900023827795e-05,
+      "proposal_id": "b9067e713eb949bf8805766153abdac9",
+      "provider_call_id": "call_2251869",
+      "request_id": "faddd29f4d9e4eab8c526f6ea64612f1:1",
+      "trace_id": "faddd29f4d9e4eab8c526f6ea64612f1"
+    }
+  ],
+  "evaluation": {
+    "passed": false,
+    "checks": {
+      "tool_selection": {
+        "passed": true,
+        "expected": [
+          "update_identity_doc"
+        ],
+        "actual": [
+          "update_identity_doc"
+        ],
+        "missing": [],
+        "unexpected": []
+      },
+      "argument_accuracy": {
+        "passed": false,
+        "details": [
+          {
+            "function": "update_identity_doc",
+            "passed": false,
+            "expected_args": {
+              "doc_type": "driver_license",
+              "doc_number": "DL555"
+            },
+            "actual_args": {
+              "doc_type": "driver_license",
+              "doc_number": "D-L-5-5-5"
+            },
+            "explanation": "Mismatch 'doc_number': expected=DL555, got=D-L-5-5-5"
+          }
+        ]
+      }
+    },
+    "failure_reason": "Wrong arguments for: ['update_identity_doc']"
+  },
+  "passed": false,
+  "upstream_label_passed": false,
+  "execution_confirmed": true,
+  "infrastructure_error": null,
+  "transcript": "Your driver's license number has been updated to D-L-5-5-5.",
+  "transcript_source": "provider output transcription, not independent ASR",
+  "source_unchanged": true,
+  "trace_closed": true,
+  "trace_metrics": {
+    "event_counts": {
+      "session_started": 1,
+      "agent_state": 4,
+      "agent_ready": 1,
+      "speech_started": 4,
+      "model_metrics": 3,
+      "session_usage": 3,
+      "speech_ended": 4,
+      "transcript_received": 2,
+      "intent_revised": 1,
+      "intent_extended": 1,
+      "transcript_ignored": 1,
+      "conversation_item": 2,
+      "sdk_tool_lifecycle": 2,
+      "tool_raw_proposed": 1,
+      "tool_proposed": 1,
+      "controller_decision": 1,
+      "tool_prepared": 1,
+      "tool_dispatch": 1,
+      "tool_executed": 1,
+      "tool_result_delivered": 1,
+      "request_completed": 1,
+      "assistant_response": 1,
+      "session_closed": 1
+    },
+    "tool_outcomes": {
+      "success": 1
+    },
+    "external_api_outcomes": {},
+    "timings": {
+      "tool_duration_s": {
+        "count": 1,
+        "mean": 4.714900023827795e-05,
+        "min": 4.714900023827795e-05,
+        "max": 4.714900023827795e-05,
+        "p50": 4.714900023827795e-05,
+        "p95": 4.714900023827795e-05
+      },
+      "external_api_duration_s": {
+        "count": 0,
+        "mean": null,
+        "min": null,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "gate_duration_s": {
+        "count": 1,
+        "mean": 0.8842267709997031,
+        "min": 0.8842267709997031,
+        "max": 0.8842267709997031,
+        "p50": 0.8842267709997031,
+        "p95": 0.8842267709997031
+      },
+      "preparation_duration_s": {
+        "count": 1,
+        "mean": 2.1505999939108733e-05,
+        "min": 2.1505999939108733e-05,
+        "max": 2.1505999939108733e-05,
+        "p50": 2.1505999939108733e-05,
+        "p95": 2.1505999939108733e-05
+      },
+      "vad_to_assistant_state_s": {
+        "count": 1,
+        "mean": 3.120236000000002,
+        "min": 3.120236000000002,
+        "max": 3.120236000000002,
+        "p50": 3.120236000000002,
+        "p95": 3.120236000000002
+      },
+      "interruption_to_state_stop_s": {
+        "count": 0,
+        "mean": null,
+        "min": null,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "sdk_ttft_s": {
+        "count": 1,
+        "mean": 0.0006706714630126953,
+        "min": 0.0006706714630126953,
+        "max": 0.0006706714630126953,
+        "p50": 0.0006706714630126953,
+        "p95": 0.0006706714630126953
+      }
+    },
+    "user_interruptions_observed": 0,
+    "interrupted_assistant_messages": 0,
+    "sdk_usage_latest": {
+      "model_usage": [
+        {
+          "type": "llm_usage",
+          "provider": "Gemini",
+          "model": "gemini-3.8-live",
+          "input_tokens": 6010,
+          "input_cached_tokens": 0,
+          "input_cache_creation_tokens": 0,
+          "input_audio_tokens": 1160,
+          "input_cached_audio_tokens": 0,
+          "input_text_tokens": 3894,
+          "input_cached_text_tokens": 0,
+          "input_image_tokens": 0,
+          "input_cached_image_tokens": 0,
+          "output_tokens": 196,
+          "output_audio_tokens": 161,
+          "output_text_tokens": 0,
+          "output_reasoning_tokens": 0,
+          "session_duration": 0.0
+        }
+      ]
+    },
+    "sdk_realtime_requests": [
+      {
+        "type": "realtime_model_metrics",
+        "label": "livekit.plugins.google.realtime.realtime_api.RealtimeModel",
+        "request_id": "GR_c8bfa9bb51e2",
+        "timestamp": 1792352893.2572749,
+        "duration": 0.010642528533935547,
+        "session_duration": 0.0,
+        "ttft": -1.0,
+        "cancelled": false,
+        "input_tokens": 2966,
+        "output_tokens": 35,
+        "total_tokens": 3001,
+        "tokens_per_second": 3288.6921457054527,
+        "input_token_details": {
+          "audio_tokens": 580,
+          "text_tokens": 1919,
+          "image_tokens": 0,
+          "cached_tokens": 0,
+          "cached_tokens_details": {
+            "audio_tokens": 0,
+            "text_tokens": 0,
+            "image_tokens": 0
+          }
+        },
+        "output_token_details": {
+          "text_tokens": 0,
+          "audio_tokens": 0,
+          "image_tokens": 0
+        },
+        "acquire_time": 0.0,
+        "connection_reused": false,
+        "metadata": {
+          "model_name": "gemini-3.8-live",
+          "model_provider": "Gemini"
+        }
+      },
+      {
+        "type": "realtime_model_metrics",
+        "label": "livekit.plugins.google.realtime.realtime_api.RealtimeModel",
+        "request_id": "GR_3f1a30a74670",
+        "timestamp": 1792352895.0467625,
+        "duration": 6.159282445907593,
+        "session_duration": 0.0,
+        "ttft": 0.0006706714630126953,
+        "cancelled": false,
+        "input_tokens": 3044,
+        "output_tokens": 161,
+        "total_tokens": 3205,
+        "tokens_per_second": 26.139408512914212,
+        "input_token_details": {
+          "audio_tokens": 580,
+          "text_tokens": 1975,
+          "image_tokens": 0,
+          "cached_tokens": 0,
+          "cached_tokens_details": {
+            "audio_tokens": 0,
+            "text_tokens": 0,
+            "image_tokens": 0
+          }
+        },
+        "output_token_details": {
+          "text_tokens": 0,
+          "audio_tokens": 161,
+          "image_tokens": 0
+        },
+        "acquire_time": 0.0,
+        "connection_reused": false,
+        "metadata": {
+          "model_name": "gemini-3.8-live",
+          "model_provider": "Gemini"
+        }
+      }
+    ],
+    "trace_closed": true,
+    "official_audio_alignment_available": false,
+    "timing_note": "VAD and SDK state transitions are local proxies, not listener playback or upstream ASR alignment.",
+    "billable_cost": null
+  },
+  "trace_file": "events.jsonl",
+  "in_flight_dispatches": 0,
+  "model": "gemini-3.8-live",
+  "evaluation_method": "pinned exact, no semantic judge",
+  "observed_session": {
+    "schema_version": 2,
+    "trace_id": "faddd29f4d9e4eab8c526f6ea64612f1",
+    "event_id": "21bac98970894c4f9bb7fdfafe09ef21",
+    "sequence": 1,
+    "event": "session_started",
+    "room": "original-vs-astra-20261019-gemma26-B-i085-r0-000-a0",
+    "elapsed_s": 0.007839,
+    "monotonic_ns": 3507550759617,
+    "wall_time": 1792352875.9378757,
+    "model": "gemini-3.8-live",
+    "policy": "guarded",
+    "settle_ms": 1000,
+    "write_settle_ms": 900,
+    "mode": "benchmark",
+    "settings": {
+      "model": "gemini-3.8-live",
+      "policy": "guarded",
+      "settle_ms": 1000,
+      "write_settle_ms": 900,
+      "gate_timeout_s": 30.0,
+      "tool_timeout_s": 20.0,
+      "latency_profile": "instant",
+      "mode": "benchmark"
+    },
+    "source_sha256": "93562be1d24da1e194c66e804b515dbb69fcbc4b54bf340f088a7357ccbeb258",
+    "vad_silence_ms": 650,
+    "audio_clock_origin": "not synchronized to client stream"
+  },
+  "final_trace_sha256": "a9b9b44c5bcfbf02617f45945d9d76a084e3791316342f3380a19622189e1f12"
+}

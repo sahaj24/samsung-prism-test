@@ -38,3 +38,18 @@ client_secret*.json
 /docs/DEMO_PHASE*.md
 /HOLDOUT_HANDOFF.md
 /:memory:.ses
+
+# Machine-specific launchers, media and private local snapshots.
+/Reprise.desktop
+/reprise_demo_preview*.mp4
+/videos/
+/tmp/
+/docs/superpowers/
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+
+# Explicitly reviewed public evaluation bundle; other evidence stays local.
+!/evidence/
+/evidence/*
+!/evidence/fdb-v3-20261019/

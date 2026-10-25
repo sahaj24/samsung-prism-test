@@ -1,0 +1,397 @@
+{
+  "sample": "travel_21_65e8cf8f4c7424fa062e54a3",
+  "room": "original-vs-astra-20261019-gemma26-B-i095-r0-000-a0",
+  "id": "travel_21",
+  "attempts": [
+    {
+      "room": "original-vs-astra-20261019-gemma26-B-i095-r0-000-a0",
+      "infrastructure_error": null,
+      "trace_closed": false,
+      "configuration_errors": []
+    }
+  ],
+  "example_id": "travel_21",
+  "domain": "travel_identity",
+  "difficulty": "hard",
+  "actual_tool_calls": [
+    {
+      "function": "update_identity_doc",
+      "args": {
+        "doc_type": "visa",
+        "doc_number": "V77"
+      },
+      "timestamp_start": 1792353242.4334805,
+      "timestamp_end": 1792353242.4335265,
+      "outcome": "success",
+      "duration_s": 4.6068999836279545e-05,
+      "proposal_id": "2337b17516634a638666f6c1dfba8072",
+      "provider_call_id": "call_1369774",
+      "request_id": "797d2bb68db44536a4ea90a72d15f52a:1",
+      "trace_id": "797d2bb68db44536a4ea90a72d15f52a"
+    },
+    {
+      "function": "search_flights",
+      "args": {
+        "destination": "Las Vegas",
+        "date": "August 8"
+      },
+      "timestamp_start": 1792353242.8893015,
+      "timestamp_end": 1792353242.8894274,
+      "outcome": "success",
+      "duration_s": 0.0001251589997082192,
+      "proposal_id": "9068b96cd4eb4809bfca6e81c81b6a1f",
+      "provider_call_id": "call_1369770",
+      "request_id": "797d2bb68db44536a4ea90a72d15f52a:1",
+      "trace_id": "797d2bb68db44536a4ea90a72d15f52a"
+    },
+    {
+      "function": "book_flight",
+      "args": {
+        "flight_id": "FL123",
+        "passenger_name": "Quinn Davis"
+      },
+      "timestamp_start": 1792353243.5030048,
+      "timestamp_end": 1792353243.5031137,
+      "outcome": "success",
+      "duration_s": 0.00010710700007621199,
+      "proposal_id": "fe037e66a8504aef945ea6dcd4780d4b",
+      "provider_call_id": "call_1369805",
+      "request_id": "797d2bb68db44536a4ea90a72d15f52a:1",
+      "trace_id": "797d2bb68db44536a4ea90a72d15f52a"
+    }
+  ],
+  "evaluation": {
+    "passed": true,
+    "checks": {
+      "tool_selection": {
+        "passed": true,
+        "expected": [
+          "search_flights",
+          "book_flight",
+          "update_identity_doc"
+        ],
+        "actual": [
+          "update_identity_doc",
+          "search_flights",
+          "book_flight"
+        ],
+        "missing": [],
+        "unexpected": []
+      },
+      "argument_accuracy": {
+        "passed": true,
+        "details": [
+          {
+            "function": "search_flights",
+            "passed": true,
+            "expected_args": {
+              "destination": "Las Vegas",
+              "date": "August 8"
+            },
+            "actual_args": {
+              "destination": "Las Vegas",
+              "date": "August 8"
+            },
+            "explanation": "All arguments match"
+          },
+          {
+            "function": "book_flight",
+            "passed": true,
+            "expected_args": {
+              "passenger_name": "Quinn Davis"
+            },
+            "actual_args": {
+              "flight_id": "FL123",
+              "passenger_name": "Quinn Davis"
+            },
+            "explanation": "All arguments match"
+          },
+          {
+            "function": "update_identity_doc",
+            "passed": true,
+            "expected_args": {
+              "doc_type": "visa",
+              "doc_number": "V77"
+            },
+            "actual_args": {
+              "doc_type": "visa",
+              "doc_number": "V77"
+            },
+            "explanation": "All arguments match"
+          }
+        ]
+      }
+    },
+    "failure_reason": ""
+  },
+  "passed": true,
+  "upstream_label_passed": true,
+  "execution_confirmed": true,
+  "infrastructure_error": null,
+  "transcript": "I've updated your visa number to V77 and successfully booked your flight to Las Vegas for August 8th under the name Quinn Davis.",
+  "transcript_source": "provider output transcription, not independent ASR",
+  "source_unchanged": true,
+  "trace_closed": true,
+  "trace_metrics": {
+    "event_counts": {
+      "session_started": 1,
+      "agent_state": 6,
+      "agent_ready": 1,
+      "model_metrics": 4,
+      "session_usage": 4,
+      "speech_started": 4,
+      "speech_ended": 4,
+      "transcript_received": 2,
+      "intent_revised": 1,
+      "intent_extended": 1,
+      "transcript_ignored": 1,
+      "conversation_item": 2,
+      "sdk_tool_lifecycle": 6,
+      "tool_raw_proposed": 3,
+      "tool_proposed": 3,
+      "controller_decision": 3,
+      "tool_prepared": 3,
+      "tool_dispatch": 3,
+      "tool_executed": 3,
+      "tool_result_delivered": 3,
+      "request_completed": 1,
+      "assistant_response": 1,
+      "session_closed": 1
+    },
+    "tool_outcomes": {
+      "success": 3
+    },
+    "external_api_outcomes": {},
+    "timings": {
+      "tool_duration_s": {
+        "count": 3,
+        "mean": 9.277833320690358e-05,
+        "min": 4.6068999836279545e-05,
+        "max": 0.0001251589997082192,
+        "p50": 0.00010710700007621199,
+        "p95": 0.0001251589997082192
+      },
+      "external_api_duration_s": {
+        "count": 0,
+        "mean": null,
+        "min": null,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "gate_duration_s": {
+        "count": 3,
+        "mean": 0.5792717300000731,
+        "min": 0.0023208470001918613,
+        "max": 0.9296091530000012,
+        "p50": 0.8058851900000263,
+        "p95": 0.9296091530000012
+      },
+      "preparation_duration_s": {
+        "count": 3,
+        "mean": 0.12143187566668227,
+        "min": 2.5896999886754202e-05,
+        "max": 0.3550574900000356,
+        "p50": 0.009212240000124439,
+        "p95": 0.3550574900000356
+      },
+      "vad_to_assistant_state_s": {
+        "count": 1,
+        "mean": 3.6598499999999987,
+        "min": 3.6598499999999987,
+        "max": 3.6598499999999987,
+        "p50": 3.6598499999999987,
+        "p95": 3.6598499999999987
+      },
+      "interruption_to_state_stop_s": {
+        "count": 0,
+        "mean": null,
+        "min": null,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "sdk_ttft_s": {
+        "count": 1,
+        "mean": 0.0013260841369628906,
+        "min": 0.0013260841369628906,
+        "max": 0.0013260841369628906,
+        "p50": 0.0013260841369628906,
+        "p95": 0.0013260841369628906
+      }
+    },
+    "user_interruptions_observed": 0,
+    "interrupted_assistant_messages": 0,
+    "sdk_usage_latest": {
+      "model_usage": [
+        {
+          "type": "llm_usage",
+          "provider": "Gemini",
+          "model": "gemini-3.8-live",
+          "input_tokens": 9766,
+          "input_cached_tokens": 0,
+          "input_cache_creation_tokens": 0,
+          "input_audio_tokens": 2157,
+          "input_cached_audio_tokens": 0,
+          "input_text_tokens": 6088,
+          "input_cached_text_tokens": 0,
+          "input_image_tokens": 0,
+          "input_cached_image_tokens": 0,
+          "output_tokens": 271,
+          "output_audio_tokens": 218,
+          "output_text_tokens": 0,
+          "output_reasoning_tokens": 0,
+          "session_duration": 0.0
+        }
+      ]
+    },
+    "sdk_realtime_requests": [
+      {
+        "type": "realtime_model_metrics",
+        "label": "livekit.plugins.google.realtime.realtime_api.RealtimeModel",
+        "request_id": "GR_2b6072ac954f",
+        "timestamp": 1792353241.3435903,
+        "duration": 0.22190380096435547,
+        "session_duration": 0.0,
+        "ttft": -1.0,
+        "cancelled": false,
+        "input_tokens": 3129,
+        "output_tokens": 26,
+        "total_tokens": 3155,
+        "tokens_per_second": 117.16788936020251,
+        "input_token_details": {
+          "audio_tokens": 719,
+          "text_tokens": 1943,
+          "image_tokens": 0,
+          "cached_tokens": 0,
+          "cached_tokens_details": {
+            "audio_tokens": 0,
+            "text_tokens": 0,
+            "image_tokens": 0
+          }
+        },
+        "output_token_details": {
+          "text_tokens": 0,
+          "audio_tokens": 0,
+          "image_tokens": 0
+        },
+        "acquire_time": 0.0,
+        "connection_reused": false,
+        "metadata": {
+          "model_name": "gemini-3.8-live",
+          "model_provider": "Gemini"
+        }
+      },
+      {
+        "type": "realtime_model_metrics",
+        "label": "livekit.plugins.google.realtime.realtime_api.RealtimeModel",
+        "request_id": "GR_55c87eab3924",
+        "timestamp": 1792353243.3480759,
+        "duration": 0.008008241653442383,
+        "session_duration": 0.0,
+        "ttft": -1.0,
+        "cancelled": false,
+        "input_tokens": 3285,
+        "output_tokens": 27,
+        "total_tokens": 3312,
+        "tokens_per_second": 3371.526630742207,
+        "input_token_details": {
+          "audio_tokens": 719,
+          "text_tokens": 2050,
+          "image_tokens": 0,
+          "cached_tokens": 0,
+          "cached_tokens_details": {
+            "audio_tokens": 0,
+            "text_tokens": 0,
+            "image_tokens": 0
+          }
+        },
+        "output_token_details": {
+          "text_tokens": 0,
+          "audio_tokens": 0,
+          "image_tokens": 0
+        },
+        "acquire_time": 0.0,
+        "connection_reused": false,
+        "metadata": {
+          "model_name": "gemini-3.8-live",
+          "model_provider": "Gemini"
+        }
+      },
+      {
+        "type": "realtime_model_metrics",
+        "label": "livekit.plugins.google.realtime.realtime_api.RealtimeModel",
+        "request_id": "GR_2379204fdc3d",
+        "timestamp": 1792353244.480066,
+        "duration": 8.451947450637817,
+        "session_duration": 0.0,
+        "ttft": 0.0013260841369628906,
+        "cancelled": false,
+        "input_tokens": 3352,
+        "output_tokens": 218,
+        "total_tokens": 3570,
+        "tokens_per_second": 25.79287214848323,
+        "input_token_details": {
+          "audio_tokens": 719,
+          "text_tokens": 2095,
+          "image_tokens": 0,
+          "cached_tokens": 0,
+          "cached_tokens_details": {
+            "audio_tokens": 0,
+            "text_tokens": 0,
+            "image_tokens": 0
+          }
+        },
+        "output_token_details": {
+          "text_tokens": 0,
+          "audio_tokens": 218,
+          "image_tokens": 0
+        },
+        "acquire_time": 0.0,
+        "connection_reused": false,
+        "metadata": {
+          "model_name": "gemini-3.8-live",
+          "model_provider": "Gemini"
+        }
+      }
+    ],
+    "trace_closed": true,
+    "official_audio_alignment_available": false,
+    "timing_note": "VAD and SDK state transitions are local proxies, not listener playback or upstream ASR alignment.",
+    "billable_cost": null
+  },
+  "trace_file": "events.jsonl",
+  "in_flight_dispatches": 0,
+  "model": "gemini-3.8-live",
+  "evaluation_method": "pinned exact, no semantic judge",
+  "observed_session": {
+    "schema_version": 2,
+    "trace_id": "797d2bb68db44536a4ea90a72d15f52a",
+    "event_id": "b8f50b645d4a4f938893cef6dd1564c3",
+    "sequence": 1,
+    "event": "session_started",
+    "room": "original-vs-astra-20261019-gemma26-B-i095-r0-000-a0",
+    "elapsed_s": 0.009384,
+    "monotonic_ns": 3850063097138,
+    "wall_time": 1792353218.4502137,
+    "model": "gemini-3.8-live",
+    "policy": "guarded",
+    "settle_ms": 1000,
+    "write_settle_ms": 900,
+    "mode": "benchmark",
+    "settings": {
+      "model": "gemini-3.8-live",
+      "policy": "guarded",
+      "settle_ms": 1000,
+      "write_settle_ms": 900,
+      "gate_timeout_s": 30.0,
+      "tool_timeout_s": 20.0,
+      "latency_profile": "instant",
+      "mode": "benchmark"
+    },
+    "source_sha256": "93562be1d24da1e194c66e804b515dbb69fcbc4b54bf340f088a7357ccbeb258",
+    "vad_silence_ms": 650,
+    "audio_clock_origin": "not synchronized to client stream"
+  },
+  "final_trace_sha256": "6c1423b6a490c54f79e5a05ce91864e52e91b7bba987b99a0d131be4f508de54"
+}

@@ -1,0 +1,401 @@
+{
+  "sample": "housing_22_695bd157114f0d2317f88617",
+  "room": "original-vs-astra-20261019-gemma26-B-i076-r0-000-a0",
+  "id": "housing_22",
+  "attempts": [
+    {
+      "room": "original-vs-astra-20261019-gemma26-B-i076-r0-000-a0",
+      "infrastructure_error": null,
+      "trace_closed": false,
+      "configuration_errors": []
+    }
+  ],
+  "example_id": "housing_22",
+  "domain": "housing_location",
+  "difficulty": "hard",
+  "actual_tool_calls": [
+    {
+      "function": "update_search_filter",
+      "args": {
+        "filter_name": "pets_allowed",
+        "value": true
+      },
+      "timestamp_start": 1792352547.4644227,
+      "timestamp_end": 1792352547.4644604,
+      "outcome": "success",
+      "duration_s": 3.759400033231941e-05,
+      "proposal_id": "3be6ddf5b82748aa95d1b7c460c6af1a",
+      "provider_call_id": "call_2559667",
+      "request_id": "ddb5bfa76d05469f939bee6555ebb038:1",
+      "trace_id": "ddb5bfa76d05469f939bee6555ebb038"
+    },
+    {
+      "function": "search_apartments",
+      "args": {
+        "bedrooms": 1,
+        "city": "Seattle"
+      },
+      "timestamp_start": 1792352547.6878994,
+      "timestamp_end": 1792352547.687954,
+      "outcome": "success",
+      "duration_s": 5.421800005933619e-05,
+      "proposal_id": "5c98e9b47b634efcbdb8f4641fdf0419",
+      "provider_call_id": "call_2559671",
+      "request_id": "ddb5bfa76d05469f939bee6555ebb038:1",
+      "trace_id": "ddb5bfa76d05469f939bee6555ebb038"
+    },
+    {
+      "function": "calculate_commute",
+      "args": {
+        "destination_address": "the stadium",
+        "origin_address": "APT1",
+        "mode": "transit"
+      },
+      "timestamp_start": 1792352549.2609134,
+      "timestamp_end": 1792352549.260947,
+      "outcome": "success",
+      "duration_s": 3.340500006743241e-05,
+      "proposal_id": "6708b17b47504107b4e83237a4181b6b",
+      "provider_call_id": "call_2559705",
+      "request_id": "ddb5bfa76d05469f939bee6555ebb038:1",
+      "trace_id": "ddb5bfa76d05469f939bee6555ebb038"
+    }
+  ],
+  "evaluation": {
+    "passed": true,
+    "checks": {
+      "tool_selection": {
+        "passed": true,
+        "expected": [
+          "update_search_filter",
+          "search_apartments",
+          "calculate_commute"
+        ],
+        "actual": [
+          "update_search_filter",
+          "search_apartments",
+          "calculate_commute"
+        ],
+        "missing": [],
+        "unexpected": []
+      },
+      "argument_accuracy": {
+        "passed": true,
+        "details": [
+          {
+            "function": "update_search_filter",
+            "passed": true,
+            "expected_args": {
+              "filter_name": "pets_allowed",
+              "value": true
+            },
+            "actual_args": {
+              "filter_name": "pets_allowed",
+              "value": true
+            },
+            "explanation": "All arguments match"
+          },
+          {
+            "function": "search_apartments",
+            "passed": true,
+            "expected_args": {
+              "city": "Seattle",
+              "bedrooms": 1
+            },
+            "actual_args": {
+              "bedrooms": 1,
+              "city": "Seattle"
+            },
+            "explanation": "All arguments match"
+          },
+          {
+            "function": "calculate_commute",
+            "passed": true,
+            "expected_args": {
+              "origin_address": "$RESULT_1.apartments[0].address",
+              "destination_address": "the stadium",
+              "mode": "transit"
+            },
+            "actual_args": {
+              "destination_address": "the stadium",
+              "origin_address": "APT1",
+              "mode": "transit"
+            },
+            "explanation": "All arguments match"
+          }
+        ]
+      }
+    },
+    "failure_reason": ""
+  },
+  "passed": true,
+  "upstream_label_passed": true,
+  "execution_confirmed": true,
+  "infrastructure_error": null,
+  "transcript": "I've updated your filter to allow pets and found a one-bedroom apartment in Seattle. The transit time from there to the stadium is 25 minutes.",
+  "transcript_source": "provider output transcription, not independent ASR",
+  "source_unchanged": true,
+  "trace_closed": true,
+  "trace_metrics": {
+    "event_counts": {
+      "session_started": 1,
+      "agent_state": 6,
+      "agent_ready": 1,
+      "model_metrics": 4,
+      "session_usage": 4,
+      "speech_started": 5,
+      "speech_ended": 5,
+      "transcript_received": 2,
+      "intent_revised": 1,
+      "intent_extended": 1,
+      "transcript_ignored": 1,
+      "conversation_item": 2,
+      "sdk_tool_lifecycle": 6,
+      "tool_raw_proposed": 3,
+      "tool_proposed": 3,
+      "controller_decision": 3,
+      "tool_prepared": 3,
+      "tool_dispatch": 3,
+      "tool_executed": 3,
+      "tool_result_delivered": 3,
+      "request_completed": 1,
+      "assistant_response": 1,
+      "session_closed": 1
+    },
+    "tool_outcomes": {
+      "success": 3
+    },
+    "external_api_outcomes": {},
+    "timings": {
+      "tool_duration_s": {
+        "count": 3,
+        "mean": 4.173900015302934e-05,
+        "min": 3.340500006743241e-05,
+        "max": 5.421800005933619e-05,
+        "p50": 3.759400033231941e-05,
+        "p95": 5.421800005933619e-05
+      },
+      "external_api_duration_s": {
+        "count": 0,
+        "mean": null,
+        "min": null,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "gate_duration_s": {
+        "count": 3,
+        "mean": 0.6225545033333523,
+        "min": 8.387700017919997e-05,
+        "max": 0.982669431999966,
+        "p50": 0.8849102009999115,
+        "p95": 0.982669431999966
+      },
+      "preparation_duration_s": {
+        "count": 3,
+        "mean": 0.32095766833344896,
+        "min": 0.0966506190002292,
+        "max": 0.6486339879998013,
+        "p50": 0.21758839800031637,
+        "p95": 0.6486339879998013
+      },
+      "vad_to_assistant_state_s": {
+        "count": 1,
+        "mean": 4.6057109999999994,
+        "min": 4.6057109999999994,
+        "max": 4.6057109999999994,
+        "p50": 4.6057109999999994,
+        "p95": 4.6057109999999994
+      },
+      "interruption_to_state_stop_s": {
+        "count": 0,
+        "mean": null,
+        "min": null,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "sdk_ttft_s": {
+        "count": 1,
+        "mean": 0.0009617805480957031,
+        "min": 0.0009617805480957031,
+        "max": 0.0009617805480957031,
+        "p50": 0.0009617805480957031,
+        "p95": 0.0009617805480957031
+      }
+    },
+    "user_interruptions_observed": 0,
+    "interrupted_assistant_messages": 0,
+    "sdk_usage_latest": {
+      "model_usage": [
+        {
+          "type": "llm_usage",
+          "provider": "Gemini",
+          "model": "gemini-3.8-live",
+          "input_tokens": 9676,
+          "input_cached_tokens": 0,
+          "input_cache_creation_tokens": 0,
+          "input_audio_tokens": 2097,
+          "input_cached_audio_tokens": 0,
+          "input_text_tokens": 6052,
+          "input_cached_text_tokens": 0,
+          "input_image_tokens": 0,
+          "input_cached_image_tokens": 0,
+          "output_tokens": 266,
+          "output_audio_tokens": 218,
+          "output_text_tokens": 0,
+          "output_reasoning_tokens": 0,
+          "session_duration": 0.0
+        }
+      ]
+    },
+    "sdk_realtime_requests": [
+      {
+        "type": "realtime_model_metrics",
+        "label": "livekit.plugins.google.realtime.realtime_api.RealtimeModel",
+        "request_id": "GR_8d7ebacfe58e",
+        "timestamp": 1792352546.0171497,
+        "duration": 0.4555337429046631,
+        "session_duration": 0.0,
+        "ttft": -1.0,
+        "cancelled": false,
+        "input_tokens": 3102,
+        "output_tokens": 17,
+        "total_tokens": 3119,
+        "tokens_per_second": 37.3188600510717,
+        "input_token_details": {
+          "audio_tokens": 699,
+          "text_tokens": 1936,
+          "image_tokens": 0,
+          "cached_tokens": 0,
+          "cached_tokens_details": {
+            "audio_tokens": 0,
+            "text_tokens": 0,
+            "image_tokens": 0
+          }
+        },
+        "output_token_details": {
+          "text_tokens": 0,
+          "audio_tokens": 0,
+          "image_tokens": 0
+        },
+        "acquire_time": 0.0,
+        "connection_reused": false,
+        "metadata": {
+          "model_name": "gemini-3.8-live",
+          "model_provider": "Gemini"
+        }
+      },
+      {
+        "type": "realtime_model_metrics",
+        "label": "livekit.plugins.google.realtime.realtime_api.RealtimeModel",
+        "request_id": "GR_79a127dbe6e5",
+        "timestamp": 1792352548.6023004,
+        "duration": 0.002721071243286133,
+        "session_duration": 0.0,
+        "ttft": -1.0,
+        "cancelled": false,
+        "input_tokens": 3253,
+        "output_tokens": 31,
+        "total_tokens": 3284,
+        "tokens_per_second": 11392.571979321827,
+        "input_token_details": {
+          "audio_tokens": 699,
+          "text_tokens": 2037,
+          "image_tokens": 0,
+          "cached_tokens": 0,
+          "cached_tokens_details": {
+            "audio_tokens": 0,
+            "text_tokens": 0,
+            "image_tokens": 0
+          }
+        },
+        "output_token_details": {
+          "text_tokens": 0,
+          "audio_tokens": 0,
+          "image_tokens": 0
+        },
+        "acquire_time": 0.0,
+        "connection_reused": false,
+        "metadata": {
+          "model_name": "gemini-3.8-live",
+          "model_provider": "Gemini"
+        }
+      },
+      {
+        "type": "realtime_model_metrics",
+        "label": "livekit.plugins.google.realtime.realtime_api.RealtimeModel",
+        "request_id": "GR_6cde4f20ca9a",
+        "timestamp": 1792352550.1253142,
+        "duration": 8.445143699645996,
+        "session_duration": 0.0,
+        "ttft": 0.0009617805480957031,
+        "cancelled": false,
+        "input_tokens": 3321,
+        "output_tokens": 218,
+        "total_tokens": 3539,
+        "tokens_per_second": 25.81365193455952,
+        "input_token_details": {
+          "audio_tokens": 699,
+          "text_tokens": 2079,
+          "image_tokens": 0,
+          "cached_tokens": 0,
+          "cached_tokens_details": {
+            "audio_tokens": 0,
+            "text_tokens": 0,
+            "image_tokens": 0
+          }
+        },
+        "output_token_details": {
+          "text_tokens": 0,
+          "audio_tokens": 218,
+          "image_tokens": 0
+        },
+        "acquire_time": 0.0,
+        "connection_reused": false,
+        "metadata": {
+          "model_name": "gemini-3.8-live",
+          "model_provider": "Gemini"
+        }
+      }
+    ],
+    "trace_closed": true,
+    "official_audio_alignment_available": false,
+    "timing_note": "VAD and SDK state transitions are local proxies, not listener playback or upstream ASR alignment.",
+    "billable_cost": null
+  },
+  "trace_file": "events.jsonl",
+  "in_flight_dispatches": 0,
+  "model": "gemini-3.8-live",
+  "evaluation_method": "pinned exact, no semantic judge",
+  "observed_session": {
+    "schema_version": 2,
+    "trace_id": "ddb5bfa76d05469f939bee6555ebb038",
+    "event_id": "711215bf2cf64e4ab646c1691635b3ee",
+    "sequence": 1,
+    "event": "session_started",
+    "room": "original-vs-astra-20261019-gemma26-B-i076-r0-000-a0",
+    "elapsed_s": 0.011445,
+    "monotonic_ns": 3155774046491,
+    "wall_time": 1792352524.1611629,
+    "model": "gemini-3.8-live",
+    "policy": "guarded",
+    "settle_ms": 1000,
+    "write_settle_ms": 900,
+    "mode": "benchmark",
+    "settings": {
+      "model": "gemini-3.8-live",
+      "policy": "guarded",
+      "settle_ms": 1000,
+      "write_settle_ms": 900,
+      "gate_timeout_s": 30.0,
+      "tool_timeout_s": 20.0,
+      "latency_profile": "instant",
+      "mode": "benchmark"
+    },
+    "source_sha256": "93562be1d24da1e194c66e804b515dbb69fcbc4b54bf340f088a7357ccbeb258",
+    "vad_silence_ms": 650,
+    "audio_clock_origin": "not synchronized to client stream"
+  },
+  "final_trace_sha256": "3e20d679f352fee5850763c8d792cc3c818aa6b80f992c16f52bdbc8f419dd58"
+}

@@ -1,0 +1,437 @@
+{
+  "sample": "housing_20_62a885d5b6af18b3d4579e1b",
+  "room": "original-vs-astra-20261019-gemma26-B-i074-r0-000-a0",
+  "id": "housing_20",
+  "attempts": [
+    {
+      "room": "original-vs-astra-20261019-gemma26-B-i074-r0-000-a0",
+      "infrastructure_error": null,
+      "trace_closed": false,
+      "configuration_errors": []
+    }
+  ],
+  "example_id": "housing_20",
+  "domain": "housing_location",
+  "difficulty": "hard",
+  "actual_tool_calls": [
+    {
+      "function": "search_apartments",
+      "args": {
+        "max_price": 2000,
+        "city": "Austin"
+      },
+      "timestamp_start": 1792352473.8983386,
+      "timestamp_end": 1792352473.89838,
+      "outcome": "success",
+      "duration_s": 4.1434000195295084e-05,
+      "proposal_id": "b5cf0acd8346484aa8cac61be83c8f03",
+      "provider_call_id": "call_4380513",
+      "request_id": "1771ff7f28b44f4f9966a56da7aa0ab5:1",
+      "trace_id": "1771ff7f28b44f4f9966a56da7aa0ab5"
+    },
+    {
+      "function": "calculate_commute",
+      "args": {
+        "origin_address": "APT1",
+        "destination_address": "my office",
+        "mode": "driving"
+      },
+      "timestamp_start": 1792352474.9191828,
+      "timestamp_end": 1792352474.9192297,
+      "outcome": "success",
+      "duration_s": 4.653799987863749e-05,
+      "proposal_id": "92540e60130341a68fc414f48f67ac6c",
+      "provider_call_id": "call_4380544",
+      "request_id": "1771ff7f28b44f4f9966a56da7aa0ab5:1",
+      "trace_id": "1771ff7f28b44f4f9966a56da7aa0ab5"
+    },
+    {
+      "function": "update_search_filter",
+      "args": {
+        "filter_name": "max_price",
+        "value": 2500
+      },
+      "timestamp_start": 1792352475.326762,
+      "timestamp_end": 1792352475.3269053,
+      "outcome": "success",
+      "duration_s": 0.0001426919998266385,
+      "proposal_id": "41ef86f8da2f469db39d8f306959a477",
+      "provider_call_id": "call_4380557",
+      "request_id": "1771ff7f28b44f4f9966a56da7aa0ab5:1",
+      "trace_id": "1771ff7f28b44f4f9966a56da7aa0ab5"
+    }
+  ],
+  "evaluation": {
+    "passed": true,
+    "checks": {
+      "tool_selection": {
+        "passed": true,
+        "expected": [
+          "search_apartments",
+          "calculate_commute",
+          "update_search_filter"
+        ],
+        "actual": [
+          "search_apartments",
+          "calculate_commute",
+          "update_search_filter"
+        ],
+        "missing": [],
+        "unexpected": []
+      },
+      "argument_accuracy": {
+        "passed": true,
+        "details": [
+          {
+            "function": "search_apartments",
+            "passed": true,
+            "expected_args": {
+              "city": "Austin",
+              "max_price": 2000
+            },
+            "actual_args": {
+              "max_price": 2000,
+              "city": "Austin"
+            },
+            "explanation": "All arguments match"
+          },
+          {
+            "function": "calculate_commute",
+            "passed": true,
+            "expected_args": {
+              "origin_address": "$RESULT_0.apartments[0].address",
+              "destination_address": "my office",
+              "mode": "driving"
+            },
+            "actual_args": {
+              "origin_address": "APT1",
+              "destination_address": "my office",
+              "mode": "driving"
+            },
+            "explanation": "All arguments match"
+          },
+          {
+            "function": "update_search_filter",
+            "passed": true,
+            "expected_args": {
+              "filter_name": "max_price",
+              "value": 2500
+            },
+            "actual_args": {
+              "filter_name": "max_price",
+              "value": 2500
+            },
+            "explanation": "All arguments match"
+          }
+        ]
+      }
+    },
+    "failure_reason": ""
+  },
+  "passed": true,
+  "upstream_label_passed": true,
+  "execution_confirmed": true,
+  "infrastructure_error": null,
+  "transcript": "The commute from the apartment found is 25 minutes, so I've updated your budget filter to 2,500 to find places closer to work.",
+  "transcript_source": "provider output transcription, not independent ASR",
+  "source_unchanged": true,
+  "trace_closed": true,
+  "trace_metrics": {
+    "event_counts": {
+      "session_started": 1,
+      "agent_state": 8,
+      "agent_ready": 1,
+      "speech_started": 2,
+      "model_metrics": 5,
+      "session_usage": 5,
+      "speech_ended": 2,
+      "transcript_received": 2,
+      "intent_revised": 1,
+      "intent_extended": 1,
+      "transcript_ignored": 1,
+      "conversation_item": 2,
+      "sdk_tool_lifecycle": 6,
+      "tool_raw_proposed": 3,
+      "tool_proposed": 3,
+      "controller_decision": 3,
+      "tool_prepared": 3,
+      "tool_dispatch": 3,
+      "tool_executed": 3,
+      "tool_result_delivered": 3,
+      "request_completed": 1,
+      "assistant_response": 1,
+      "session_closed": 1
+    },
+    "tool_outcomes": {
+      "success": 3
+    },
+    "external_api_outcomes": {},
+    "timings": {
+      "tool_duration_s": {
+        "count": 3,
+        "mean": 7.688799996685702e-05,
+        "min": 4.1434000195295084e-05,
+        "max": 0.0001426919998266385,
+        "p50": 4.653799987863749e-05,
+        "p95": 0.0001426919998266385
+      },
+      "external_api_duration_s": {
+        "count": 0,
+        "mean": null,
+        "min": null,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "gate_duration_s": {
+        "count": 3,
+        "mean": 0.3283872593333399,
+        "min": 0.00010471599989614333,
+        "max": 0.9849227790000441,
+        "p50": 0.00013428300007944927,
+        "p95": 0.9849227790000441
+      },
+      "preparation_duration_s": {
+        "count": 3,
+        "mean": 0.2881561623333558,
+        "min": 0.05115661799982263,
+        "max": 0.4264851610000733,
+        "p50": 0.3868267080001715,
+        "p95": 0.4264851610000733
+      },
+      "vad_to_assistant_state_s": {
+        "count": 1,
+        "mean": 4.686261000000002,
+        "min": 4.686261000000002,
+        "max": 4.686261000000002,
+        "p50": 4.686261000000002,
+        "p95": 4.686261000000002
+      },
+      "interruption_to_state_stop_s": {
+        "count": 0,
+        "mean": null,
+        "min": null,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "sdk_ttft_s": {
+        "count": 1,
+        "mean": 0.000762939453125,
+        "min": 0.000762939453125,
+        "max": 0.000762939453125,
+        "p50": 0.000762939453125,
+        "p95": 0.000762939453125
+      }
+    },
+    "user_interruptions_observed": 0,
+    "interrupted_assistant_messages": 0,
+    "sdk_usage_latest": {
+      "model_usage": [
+        {
+          "type": "llm_usage",
+          "provider": "Gemini",
+          "model": "gemini-3.8-live",
+          "input_tokens": 12806,
+          "input_cached_tokens": 0,
+          "input_cache_creation_tokens": 0,
+          "input_audio_tokens": 2652,
+          "input_cached_audio_tokens": 0,
+          "input_text_tokens": 8154,
+          "input_cached_text_tokens": 0,
+          "input_image_tokens": 0,
+          "input_cached_image_tokens": 0,
+          "output_tokens": 275,
+          "output_audio_tokens": 197,
+          "output_text_tokens": 0,
+          "output_reasoning_tokens": 0,
+          "session_duration": 0.0
+        }
+      ]
+    },
+    "sdk_realtime_requests": [
+      {
+        "type": "realtime_model_metrics",
+        "label": "livekit.plugins.google.realtime.realtime_api.RealtimeModel",
+        "request_id": "GR_7b0d2d425198",
+        "timestamp": 1792352472.0430264,
+        "duration": 0.47463130950927734,
+        "session_duration": 0.0,
+        "ttft": -1.0,
+        "cancelled": false,
+        "input_tokens": 3094,
+        "output_tokens": 22,
+        "total_tokens": 3116,
+        "tokens_per_second": 46.35176727541607,
+        "input_token_details": {
+          "audio_tokens": 663,
+          "text_tokens": 1964,
+          "image_tokens": 0,
+          "cached_tokens": 0,
+          "cached_tokens_details": {
+            "audio_tokens": 0,
+            "text_tokens": 0,
+            "image_tokens": 0
+          }
+        },
+        "output_token_details": {
+          "text_tokens": 0,
+          "audio_tokens": 0,
+          "image_tokens": 0
+        },
+        "acquire_time": 0.0,
+        "connection_reused": false,
+        "metadata": {
+          "model_name": "gemini-3.8-live",
+          "model_provider": "Gemini"
+        }
+      },
+      {
+        "type": "realtime_model_metrics",
+        "label": "livekit.plugins.google.realtime.realtime_api.RealtimeModel",
+        "request_id": "GR_5b4fba48d129",
+        "timestamp": 1792352474.482308,
+        "duration": 0.0013265609741210938,
+        "session_duration": 0.0,
+        "ttft": -1.0,
+        "cancelled": false,
+        "input_tokens": 3169,
+        "output_tokens": 31,
+        "total_tokens": 3200,
+        "tokens_per_second": 23368.695902228614,
+        "input_token_details": {
+          "audio_tokens": 663,
+          "text_tokens": 2019,
+          "image_tokens": 0,
+          "cached_tokens": 0,
+          "cached_tokens_details": {
+            "audio_tokens": 0,
+            "text_tokens": 0,
+            "image_tokens": 0
+          }
+        },
+        "output_token_details": {
+          "text_tokens": 0,
+          "audio_tokens": 0,
+          "image_tokens": 0
+        },
+        "acquire_time": 0.0,
+        "connection_reused": false,
+        "metadata": {
+          "model_name": "gemini-3.8-live",
+          "model_provider": "Gemini"
+        }
+      },
+      {
+        "type": "realtime_model_metrics",
+        "label": "livekit.plugins.google.realtime.realtime_api.RealtimeModel",
+        "request_id": "GR_90323438cb6f",
+        "timestamp": 1792352475.2661686,
+        "duration": 0.0012323856353759766,
+        "session_duration": 0.0,
+        "ttft": -1.0,
+        "cancelled": false,
+        "input_tokens": 3237,
+        "output_tokens": 25,
+        "total_tokens": 3262,
+        "tokens_per_second": 20285.85799961308,
+        "input_token_details": {
+          "audio_tokens": 663,
+          "text_tokens": 2061,
+          "image_tokens": 0,
+          "cached_tokens": 0,
+          "cached_tokens_details": {
+            "audio_tokens": 0,
+            "text_tokens": 0,
+            "image_tokens": 0
+          }
+        },
+        "output_token_details": {
+          "text_tokens": 0,
+          "audio_tokens": 0,
+          "image_tokens": 0
+        },
+        "acquire_time": 0.0,
+        "connection_reused": false,
+        "metadata": {
+          "model_name": "gemini-3.8-live",
+          "model_provider": "Gemini"
+        }
+      },
+      {
+        "type": "realtime_model_metrics",
+        "label": "livekit.plugins.google.realtime.realtime_api.RealtimeModel",
+        "request_id": "GR_c55f44254868",
+        "timestamp": 1792352475.8714695,
+        "duration": 7.682760000228882,
+        "session_duration": 0.0,
+        "ttft": 0.000762939453125,
+        "cancelled": false,
+        "input_tokens": 3306,
+        "output_tokens": 197,
+        "total_tokens": 3503,
+        "tokens_per_second": 25.64182663445572,
+        "input_token_details": {
+          "audio_tokens": 663,
+          "text_tokens": 2110,
+          "image_tokens": 0,
+          "cached_tokens": 0,
+          "cached_tokens_details": {
+            "audio_tokens": 0,
+            "text_tokens": 0,
+            "image_tokens": 0
+          }
+        },
+        "output_token_details": {
+          "text_tokens": 0,
+          "audio_tokens": 197,
+          "image_tokens": 0
+        },
+        "acquire_time": 0.0,
+        "connection_reused": false,
+        "metadata": {
+          "model_name": "gemini-3.8-live",
+          "model_provider": "Gemini"
+        }
+      }
+    ],
+    "trace_closed": true,
+    "official_audio_alignment_available": false,
+    "timing_note": "VAD and SDK state transitions are local proxies, not listener playback or upstream ASR alignment.",
+    "billable_cost": null
+  },
+  "trace_file": "events.jsonl",
+  "in_flight_dispatches": 0,
+  "model": "gemini-3.8-live",
+  "evaluation_method": "pinned exact, no semantic judge",
+  "observed_session": {
+    "schema_version": 2,
+    "trace_id": "1771ff7f28b44f4f9966a56da7aa0ab5",
+    "event_id": "2f3d233b23d84a0897544a3d12f1bae8",
+    "sequence": 1,
+    "event": "session_started",
+    "room": "original-vs-astra-20261019-gemma26-B-i074-r0-000-a0",
+    "elapsed_s": 0.014504,
+    "monotonic_ns": 3083907418825,
+    "wall_time": 1792352452.2945356,
+    "model": "gemini-3.8-live",
+    "policy": "guarded",
+    "settle_ms": 1000,
+    "write_settle_ms": 900,
+    "mode": "benchmark",
+    "settings": {
+      "model": "gemini-3.8-live",
+      "policy": "guarded",
+      "settle_ms": 1000,
+      "write_settle_ms": 900,
+      "gate_timeout_s": 30.0,
+      "tool_timeout_s": 20.0,
+      "latency_profile": "instant",
+      "mode": "benchmark"
+    },
+    "source_sha256": "93562be1d24da1e194c66e804b515dbb69fcbc4b54bf340f088a7357ccbeb258",
+    "vad_silence_ms": 650,
+    "audio_clock_origin": "not synchronized to client stream"
+  },
+  "final_trace_sha256": "0ae864650cd908a84750c9c9efd1f8e8f314d1ca78ab5b399928781b64b80835"
+}

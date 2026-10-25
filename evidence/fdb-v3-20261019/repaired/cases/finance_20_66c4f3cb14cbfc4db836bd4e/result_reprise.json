@@ -1,0 +1,288 @@
+{
+  "sample": "finance_20_66c4f3cb14cbfc4db836bd4e",
+  "room": "original-vs-astra-20261019-gemma26-B-i050-r0-000-a0",
+  "id": "finance_20",
+  "attempts": [
+    {
+      "room": "original-vs-astra-20261019-gemma26-B-i050-r0-000-a0",
+      "infrastructure_error": null,
+      "trace_closed": false,
+      "configuration_errors": []
+    }
+  ],
+  "example_id": "finance_20",
+  "domain": "finance_billing",
+  "difficulty": "hard",
+  "actual_tool_calls": [
+    {
+      "function": "get_exchange_rate",
+      "args": {
+        "amount": 1000,
+        "from_currency": "USD",
+        "to_currency": "EUR"
+      },
+      "timestamp_start": 1792351621.237481,
+      "timestamp_end": 1792351621.237566,
+      "outcome": "success",
+      "duration_s": 8.443199976682081e-05,
+      "proposal_id": "9f7e6463bf1d40c6a616cd0b3ace4595",
+      "provider_call_id": "call_4430092",
+      "request_id": "0ab11887963747fe9ab048581e0c70e3:1",
+      "trace_id": "0ab11887963747fe9ab048581e0c70e3"
+    }
+  ],
+  "evaluation": {
+    "passed": false,
+    "checks": {
+      "tool_selection": {
+        "passed": false,
+        "expected": [
+          "get_exchange_rate",
+          "modify_autopay"
+        ],
+        "actual": [
+          "get_exchange_rate"
+        ],
+        "missing": [
+          "modify_autopay"
+        ],
+        "unexpected": []
+      }
+    },
+    "failure_reason": "Missing tools: ['modify_autopay']"
+  },
+  "passed": false,
+  "upstream_label_passed": false,
+  "execution_confirmed": true,
+  "infrastructure_error": null,
+  "transcript": "The exchange rate is 0.9, so 1,000 US dollars is 900 euros. Would you like me to proceed with changing your mortgage autopay to checking?",
+  "transcript_source": "provider output transcription, not independent ASR",
+  "source_unchanged": true,
+  "trace_closed": true,
+  "trace_metrics": {
+    "event_counts": {
+      "session_started": 1,
+      "agent_state": 4,
+      "agent_ready": 1,
+      "model_metrics": 3,
+      "session_usage": 3,
+      "speech_started": 1,
+      "speech_ended": 1,
+      "transcript_received": 2,
+      "intent_revised": 1,
+      "intent_extended": 1,
+      "transcript_ignored": 1,
+      "conversation_item": 2,
+      "sdk_tool_lifecycle": 2,
+      "tool_raw_proposed": 1,
+      "tool_proposed": 1,
+      "controller_decision": 1,
+      "tool_prepared": 1,
+      "tool_dispatch": 1,
+      "tool_executed": 1,
+      "tool_result_delivered": 1,
+      "request_completed": 1,
+      "assistant_response": 1,
+      "session_closed": 1
+    },
+    "tool_outcomes": {
+      "success": 1
+    },
+    "external_api_outcomes": {},
+    "timings": {
+      "tool_duration_s": {
+        "count": 1,
+        "mean": 8.443199976682081e-05,
+        "min": 8.443199976682081e-05,
+        "max": 8.443199976682081e-05,
+        "p50": 8.443199976682081e-05,
+        "p95": 8.443199976682081e-05
+      },
+      "external_api_duration_s": {
+        "count": 0,
+        "mean": null,
+        "min": null,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "gate_duration_s": {
+        "count": 1,
+        "mean": 0.9845367849998183,
+        "min": 0.9845367849998183,
+        "max": 0.9845367849998183,
+        "p50": 0.9845367849998183,
+        "p95": 0.9845367849998183
+      },
+      "preparation_duration_s": {
+        "count": 1,
+        "mean": 4.8691000301914755e-05,
+        "min": 4.8691000301914755e-05,
+        "max": 4.8691000301914755e-05,
+        "p50": 4.8691000301914755e-05,
+        "p95": 4.8691000301914755e-05
+      },
+      "vad_to_assistant_state_s": {
+        "count": 1,
+        "mean": 2.6815859999999994,
+        "min": 2.6815859999999994,
+        "max": 2.6815859999999994,
+        "p50": 2.6815859999999994,
+        "p95": 2.6815859999999994
+      },
+      "interruption_to_state_stop_s": {
+        "count": 0,
+        "mean": null,
+        "min": null,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "sdk_ttft_s": {
+        "count": 1,
+        "mean": 0.0014986991882324219,
+        "min": 0.0014986991882324219,
+        "max": 0.0014986991882324219,
+        "p50": 0.0014986991882324219,
+        "p95": 0.0014986991882324219
+      }
+    },
+    "user_interruptions_observed": 0,
+    "interrupted_assistant_messages": 0,
+    "sdk_usage_latest": {
+      "model_usage": [
+        {
+          "type": "llm_usage",
+          "provider": "Gemini",
+          "model": "gemini-3.8-live",
+          "input_tokens": 6432,
+          "input_cached_tokens": 0,
+          "input_cache_creation_tokens": 0,
+          "input_audio_tokens": 1516,
+          "input_cached_audio_tokens": 0,
+          "input_text_tokens": 3958,
+          "input_cached_text_tokens": 0,
+          "input_image_tokens": 0,
+          "input_cached_image_tokens": 0,
+          "output_tokens": 251,
+          "output_audio_tokens": 220,
+          "output_text_tokens": 0,
+          "output_reasoning_tokens": 0,
+          "session_duration": 0.0
+        }
+      ]
+    },
+    "sdk_realtime_requests": [
+      {
+        "type": "realtime_model_metrics",
+        "label": "livekit.plugins.google.realtime.realtime_api.RealtimeModel",
+        "request_id": "GR_4bd9bd0315ef",
+        "timestamp": 1792351620.0779333,
+        "duration": 0.1629619598388672,
+        "session_duration": 0.0,
+        "ttft": -1.0,
+        "cancelled": false,
+        "input_tokens": 3179,
+        "output_tokens": 31,
+        "total_tokens": 3210,
+        "tokens_per_second": 190.22844368496823,
+        "input_token_details": {
+          "audio_tokens": 758,
+          "text_tokens": 1954,
+          "image_tokens": 0,
+          "cached_tokens": 0,
+          "cached_tokens_details": {
+            "audio_tokens": 0,
+            "text_tokens": 0,
+            "image_tokens": 0
+          }
+        },
+        "output_token_details": {
+          "text_tokens": 0,
+          "audio_tokens": 0,
+          "image_tokens": 0
+        },
+        "acquire_time": 0.0,
+        "connection_reused": false,
+        "metadata": {
+          "model_name": "gemini-3.8-live",
+          "model_provider": "Gemini"
+        }
+      },
+      {
+        "type": "realtime_model_metrics",
+        "label": "livekit.plugins.google.realtime.realtime_api.RealtimeModel",
+        "request_id": "GR_e325cede6926",
+        "timestamp": 1792351622.2660887,
+        "duration": 8.521841049194336,
+        "session_duration": 0.0,
+        "ttft": 0.0014986991882324219,
+        "cancelled": false,
+        "input_tokens": 3253,
+        "output_tokens": 220,
+        "total_tokens": 3473,
+        "tokens_per_second": 25.816017774797505,
+        "input_token_details": {
+          "audio_tokens": 758,
+          "text_tokens": 2004,
+          "image_tokens": 0,
+          "cached_tokens": 0,
+          "cached_tokens_details": {
+            "audio_tokens": 0,
+            "text_tokens": 0,
+            "image_tokens": 0
+          }
+        },
+        "output_token_details": {
+          "text_tokens": 0,
+          "audio_tokens": 220,
+          "image_tokens": 0
+        },
+        "acquire_time": 0.0,
+        "connection_reused": false,
+        "metadata": {
+          "model_name": "gemini-3.8-live",
+          "model_provider": "Gemini"
+        }
+      }
+    ],
+    "trace_closed": true,
+    "official_audio_alignment_available": false,
+    "timing_note": "VAD and SDK state transitions are local proxies, not listener playback or upstream ASR alignment.",
+    "billable_cost": null
+  },
+  "trace_file": "events.jsonl",
+  "in_flight_dispatches": 0,
+  "model": "gemini-3.8-live",
+  "evaluation_method": "pinned exact, no semantic judge",
+  "observed_session": {
+    "schema_version": 2,
+    "trace_id": "0ab11887963747fe9ab048581e0c70e3",
+    "event_id": "7794d4ebda01455781e86c53364b970a",
+    "sequence": 1,
+    "event": "session_started",
+    "room": "original-vs-astra-20261019-gemma26-B-i050-r0-000-a0",
+    "elapsed_s": 0.009761,
+    "monotonic_ns": 2227355913039,
+    "wall_time": 1792351595.7430294,
+    "model": "gemini-3.8-live",
+    "policy": "guarded",
+    "settle_ms": 1000,
+    "write_settle_ms": 900,
+    "mode": "benchmark",
+    "settings": {
+      "model": "gemini-3.8-live",
+      "policy": "guarded",
+      "settle_ms": 1000,
+      "write_settle_ms": 900,
+      "gate_timeout_s": 30.0,
+      "tool_timeout_s": 20.0,
+      "latency_profile": "instant",
+      "mode": "benchmark"
+    },
+    "source_sha256": "93562be1d24da1e194c66e804b515dbb69fcbc4b54bf340f088a7357ccbeb258",
+    "vad_silence_ms": 650,
+    "audio_clock_origin": "not synchronized to client stream"
+  },
+  "final_trace_sha256": "e1f174be06d5aba6581e3e82d9e3cc39b0418a23ad297f54a002e934c56cacce"
+}
