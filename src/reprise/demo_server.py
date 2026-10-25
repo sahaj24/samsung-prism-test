@@ -1,5 +1,6 @@
 """Local-only browser demo. Secrets stay on the server."""
 import base64
+import asyncio
 import hashlib
 import json
 import re
@@ -12,6 +13,7 @@ from urllib.parse import urlparse
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from pydantic import BaseModel, Field
 from livekit import api
 
 from .config import ROOT, Settings
@@ -22,6 +24,16 @@ app = FastAPI(title="Reprise local demo", docs_url=None, redoc_url=None)
 DEMO = ROOT / "demo"
 issued: set[str] = set()
 oauth_states: dict[str, tuple[str, float]] = {}
+local_sessions: dict = {}
+closing_sessions: set = set()
+
+
+class LocalMessage(BaseModel):
+    text: str = Field(min_length=1, max_length=4000)
+
+
+class PlanApproval(BaseModel):
+    expected_revision: int | None = None
 
 
 @app.middleware("http")
@@ -44,6 +56,11 @@ async def script():
     return FileResponse(DEMO / "app.js", media_type="text/javascript")
 
 
+@app.get("/phone.js")
+async def phone_script():
+    return FileResponse(DEMO / "phone.js", media_type="text/javascript")
+
+
 @app.get("/vendor/livekit-client.umd.js")
 async def livekit_bundle():
     path = DEMO / "node_modules/livekit-client/dist/livekit-client.umd.js"
@@ -53,9 +70,42 @@ async def livekit_bundle():
 
 
 @app.post("/session")
-async def session(mode: Literal["productivity", "benchmark"] = "productivity"):
+async def session(mode: Literal["productivity", "benchmark", "call_assist"] = "productivity",
+                  planner: Literal["gemini", "local"] = "gemini"):
     Settings.from_env()
     import os
+
+    provider = None
+    if mode == "call_assist":
+        from .call_assist import workspace_backend
+        try:
+            provider = workspace_backend()
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from None
+        if planner != "gemini":
+            raise HTTPException(400, "Live Call Assist uses the existing Gemini Live backend")
+
+    if planner == "local":
+        if mode != "productivity":
+            raise HTTPException(400, "Local text planner supports Google Workspace only")
+        if sum(not s.closed for s in local_sessions.values()) >= 4:
+            raise HTTPException(409, "End an existing local session first")
+        from .local_planner import LocalPlanner, LocalSession
+        from .productivity import ProductivityBackend
+        from .trace import Trace
+        model = LocalPlanner()
+        try:
+            await model.health()
+        except Exception:
+            await model.close()
+            raise HTTPException(503, "Local model unavailable; no fallback attempted") from None
+        room = f"reprise-demo-{uuid.uuid4().hex[:14]}"
+        trace = Trace(room, ROOT / "runs" / room)
+        local_sessions[room] = LocalSession(room, model, ProductivityBackend(room, trace),
+                                            trace, Settings.from_env())
+        trace.event("local_connection", state="connected")
+        issued.add(room)
+        return {"room": room, "planner": "local", "modality": "text-only"}
 
     url = os.getenv("LIVEKIT_URL")
     key = os.getenv("LIVEKIT_API_KEY")
@@ -65,14 +115,14 @@ async def session(mode: Literal["productivity", "benchmark"] = "productivity"):
     room = f"reprise-demo-{uuid.uuid4().hex[:14]}"
     async with api.LiveKitAPI() as lk:
         await lk.room.create_room(api.CreateRoomRequest(
-            name=room, empty_timeout=90, metadata=json.dumps({"reprise_mode": mode}),
+            name=room, empty_timeout=90, metadata=json.dumps({"reprise_mode": mode, **({"workspace_backend": provider} if provider else {})}),
         ))
     token = (api.AccessToken(key, secret).with_identity(f"demo-{uuid.uuid4().hex[:8]}")
              .with_name("Demo visitor").with_grants(api.VideoGrants(
                  room_join=True, room=room, can_publish=True, can_subscribe=True,
              )).to_jwt())
     issued.add(room)
-    return {"url": url, "room": room, "token": token}
+    return {"url": url, "room": room, "token": token, **({"workspace_backend": provider, "owner_confirmation_required": True} if provider else {})}
 
 
 @app.get("/events/{room}")
@@ -93,7 +143,7 @@ async def events(room: str, after: int = 0):
                "tool_raw_proposed", "tool_proposed", "tool_dispatch", "tool_validation_failed",
                "tool_outcome_unknown", "tool_caller_detached", "stale_result_suppressed",
                "duplicate_coalesced", "approval_revoked", "approval_checked",
-               "external_api_started", "external_api_completed", "session_closed", "agent_ready", "gemini_connection", "workspace_items"}
+               "external_api_started", "external_api_completed", "session_closed", "agent_ready", "gemini_connection", "workspace_items", "local_connection", "local_model_metrics", "mock_calendar_receipt", "assistant_claim_unverified"}
     selected = [json.loads(line) for line in lines[after:] if line]
     return {"events": [e for e in selected if e.get("event") in allowed], "cursor": len(lines)}
 
@@ -146,6 +196,31 @@ def check_room(room):
         raise HTTPException(404)
 
 
+@app.post("/local/{room}/message", status_code=202)
+async def local_message(room: str, message: LocalMessage):
+    check_room(room)
+    target = local_sessions.get(room)
+    if not target or not message.text.strip():
+        raise HTTPException(400, "No local session or empty message")
+    try:
+        target.submit(message.text.strip())
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from None
+    return {"status": "queued"}
+
+
+@app.post("/local/{room}/end", status_code=202)
+async def local_end(room: str):
+    check_room(room)
+    target = local_sessions.pop(room, None)
+    if target:
+        target.closed = True  # Revoke generation authority before scheduling shutdown.
+        task = asyncio.create_task(target.close())
+        closing_sessions.add(task)
+        task.add_done_callback(closing_sessions.discard)
+    return {"status": "closing"}
+
+
 @app.get("/plans/{room}")
 async def latest_plan(room: str):
     check_room(room)
@@ -158,10 +233,10 @@ async def latest_plan(room: str):
 
 
 @app.post("/plans/{room}/{plan_id}/approve")
-async def approve_plan(room: str, plan_id: str):
+async def approve_plan(room: str, plan_id: str, approval: PlanApproval | None = None):
     check_room(room)
     try:
-        plan = PlanStore().approve(room, plan_id)
+        plan = PlanStore().approve(room, plan_id, expected_revision=approval.expected_revision if approval else None)
         plan["requires_confirmation"] = pending_confirmation(plan)
     except ValueError as exc:
         raise HTTPException(409, str(exc)) from None

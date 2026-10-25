@@ -18,7 +18,8 @@ from jsonschema import Draft202012Validator
 
 from .catalog import ToolSpec
 from .config import Settings
-from .intent import IMPLICIT_CORRECTION, IntentMemory, identifier_candidates, spelled_identifier
+from .intent import (FOLLOWUP, GOAL_RESET, REFRESH, REVISION_MARKER, IMPLICIT_CORRECTION, IntentMemory,
+                     affected_indices, identifier_candidates, spelled_identifier, undecided_read)
 from .trace import Trace
 
 
@@ -33,6 +34,12 @@ class Superseded(Exception):
 
 class InvalidCall(Exception):
     pass
+
+
+class ClarificationRequired(InvalidCall):
+    def __init__(self, message, input_id):
+        super().__init__(message)
+        self.input_id = input_id
 
 
 class OutcomeUnknown(Exception):
@@ -64,6 +71,9 @@ class Operation:
     owner: "Operation | None" = None
     normalized: bool = False
     validation_error: str | None = None
+    dependencies: list = dataclass_field(default_factory=list)
+    completed_at: float | None = None
+    cache_invalidated: bool = False
 
 
 def canonical(text: str):
@@ -111,6 +121,11 @@ class Coordinator:
         self._event_times: dict[str, float] = {}
         self._committed_texts: dict[str, str] = {}
         self._committed_inputs: set[str] = set()
+        self._followup = False
+        self._refresh = False
+        self._recovery_errors = {}
+        self._recovery_notices = set()
+        self._grounding_notices = set()
 
     def speech_started(self):
         if self.speaking:
@@ -190,6 +205,9 @@ class Coordinator:
             return
         if duplicate and (not is_final or self.input_final):
             return
+        previous = self._speech_text
+        self._followup = bool(FOLLOWUP.search(text)) and not GOAL_RESET.search(text)
+        self._refresh = bool(REFRESH.search(text))
         if not self.active_request:
             self.transaction += 1
             self.results = {}
@@ -199,7 +217,6 @@ class Coordinator:
             self.last_response_id = None
             changed_intent = True
         else:
-            previous = self._speech_text
             added = (
                 text[len(previous) :]
                 if previous and text.casefold().startswith(previous.casefold())
@@ -243,8 +260,14 @@ class Coordinator:
             is_final=is_final,
         )
         if changed_intent and self.settings.policy == "guarded":
-            for op in self._correction_targets(text):
+            for op in self._correction_targets(text, previous):
                 self._supersede(op)
+            if GOAL_RESET.search(text):
+                self.intent_memory = IntentMemory()
+        if self._refresh and self.settings.policy == "guarded":
+            for op in self._correction_targets(text, previous):
+                if not op.writes:
+                    self._supersede(op)
         if hypothesis_changed:
             for op in self._proposals:
                 if op.input_id == input_id:
@@ -253,20 +276,47 @@ class Coordinator:
             for op in self._proposals:
                 if op.input_id == input_id and not op.superseded:
                     self._normalize_proposal(op)
+        self._rebuild_results()
 
-    def _correction_targets(self, text):
+    def _known_operations(self):
+        seen = set()
+        for saved in [*self.operations.values(), *self._proposals]:
+            op = saved.owner or saved
+            if op.sequence not in seen:
+                seen.add(op.sequence)
+                yield op
+
+    def _scope(self, op):
+        spec = op.spec
+        return (*spec.intent_scope, *spec.name.split('_'), *spec.retained_slots,
+                *(label for key in spec.identifiers for label in self._identifier_labels(spec, op.args, key)))
+
+    def _subject(self, op):
+        get = getattr(self.backend, "proposal_subject", None)
+        values, extra = get(op.name, op.args) if get else (op.args, ())
+        return values, (*self._scope(op), *extra)
+
+    def _correction_targets(self, text, previous=""):
         """Scope only with explicit entity/field evidence; ambiguous corrections
         conservatively invalidate the request. No inferred replacement values.
         """
 
+        markers = list(REVISION_MARKER.finditer(text))
+        fragment = text[markers[-1].end():] if markers else text
+
         def mentioned(value):
             return isinstance(value, str) and bool(
                 re.search(
-                    r"(?<!\w)" + re.escape(value).replace("_", r"[\s_-]+") + r"(?!\w)", text, re.I
+                    r"(?<!\w)" + re.escape(value).replace("_", r"[\s_-]+") + r"(?!\w)", fragment, re.I
                 )
             )
 
-        candidates = [op for op in self._proposals if not op.superseded]
+        # Ordinary new transactions are independent, not implicit cancellation of
+        # everything previously completed. Corrections can arrive after a pause.
+        if not (CORRECTION.search(text) or IMPLICIT_CORRECTION.search(text)):
+            candidates = [op for op in self._proposals if not op.superseded]
+        else:
+            candidates = [op for op in self._known_operations() if not op.superseded]
         if re.search(r"\b(?:cancel|stop|forget) (?:it |them )?all\b|\beverything\b", text, re.I):
             return candidates
         entities = {
@@ -277,20 +327,8 @@ class Coordinator:
         }
         if entities:
             return [op for op in candidates if any(op.args.get(k) == v for k, v in entities)]
-        scoped = [
-            op
-            for op in candidates
-            if op.spec
-            and (
-                any(mentioned(k.replace("_", " ")) for k in op.spec.retained_slots)
-                or any(
-                    mentioned(label)
-                    for key in op.spec.identifiers
-                    for label in self._identifier_labels(op.spec, op.args, key)
-                )
-            )
-        ]
-        return scoped or candidates
+        indices = affected_indices(text, previous, [self._subject(op) for op in candidates])
+        return [op for i, op in enumerate(candidates) if i in indices]
 
     @staticmethod
     def _identifier_labels(spec, args, key):
@@ -306,6 +344,8 @@ class Coordinator:
         return spec.identifiers.get(key, (key.removesuffix("_id"),))
 
     def _supersede(self, op, *, invalidate_response=True):
+        if op.superseded:
+            return
         response_id = op.correlation.get("response_id")
         if response_id and invalidate_response:
             self._obsolete_responses.add(response_id)
@@ -318,14 +358,78 @@ class Coordinator:
                 op.task.cancel()
         # A completed/still-running receipt remains in the ledger, but cannot
         # seed a new reference or become the answer to a corrected request.
+        self.trace.event("operation_invalidated", original_proposal_id=op.correlation.get("proposal_id"),
+                         function=op.name, dispatched=op.dispatched, writes=op.writes)
+        for dependent in list(self._known_operations()):
+            if any(source.superseded for source in dependent.dependencies):
+                self._supersede(dependent)
+        self._rebuild_results()
+
+    def _valid_source(self, op, *, fresh=True):
+        expired = (op.completed_at is not None and op.spec.reuse_for_s
+                   and time.monotonic() - op.completed_at > op.spec.reuse_for_s)
+        # An ID is a locator for a fresh read, not authority to mutate an expired
+        # snapshot. Superseded intent is invalid in either case. A fresh read's
+        # own result can replace the snapshot without inheriting its old TTL.
+        return not (op.superseded or (fresh and (op.cache_invalidated or expired)) or any(
+            not self._valid_source(source, fresh=op.writes) for source in op.dependencies))
+
+    def _reusable_read(self, op):
+        if op.writes or not self._valid_source(op) or self._refresh:
+            return False
+        ttl = op.spec.reuse_for_s
+        if op.transaction != self.transaction and not (self._followup and ttl):
+            return False
+        if op.task and not op.task.done():
+            return True
+        if op.outcome != "success" or not (op.spec.cache_result or ttl):
+            return False
+        check = getattr(self.backend, "can_reuse", None)
+        return check is None or check(op.name, op.args, op.result)
+
+    def _rebuild_results(self):
         self.results = {}
-        for saved in self.operations.values():
-            if (
-                saved.transaction == self.transaction
-                and not saved.superseded
-                and saved.outcome == "success"
+        for op in self._known_operations():
+            if op.outcome == "success" and self._valid_source(op) and (
+                op.transaction == self.transaction or self._reusable_read(op)
             ):
-                self.results.setdefault(saved.name, []).append(saved.result)
+                self.results.setdefault(op.name, []).append(op.result)
+
+    def _capture_dependencies(self, proposal):
+        """Exact typed ID/ref provenance, never fuzzy equality between entities."""
+        def contains(value, key, expected):
+            if isinstance(value, dict):
+                return value.get(key) == expected or any(contains(v, key, expected) for v in value.values())
+            if isinstance(value, list):
+                return any(contains(v, key, expected) for v in value)
+            return False
+        for key, value in proposal.args.items():
+            if not isinstance(value, str) or not (key.endswith(("_id", "_ref")) or key in proposal.spec.references):
+                continue
+            locator = getattr(self.backend, "reference_is_locator", None)
+            if locator and locator(proposal.name, key, value):
+                continue
+            reference = proposal.spec.references.get(key)
+            source_name, field = (reference[0], reference[2]) if reference else (None, key)
+            sources = [op for op in self._known_operations() if op is not proposal
+                       and op.sequence < proposal.sequence and op.outcome == "success"
+                       and (not source_name or op.name == source_name)
+                       and contains(op.result, field, value)]
+            if sources:
+                source = max(sources, key=lambda op: op.sequence)
+                labels = proposal.spec.identifiers.get(key, (key.removesuffix('_id'),))
+                explicit = identifier_candidates(self._inputs[proposal.input_id], labels)
+                if reference and spelled_identifier(value) in explicit:
+                    continue  # The current user supplied new authority for this exact identifier.
+                # A saved plan ID is also an inspection handle. Let the durable
+                # backend report its revoked status, rather than hide that receipt.
+                if key == 'plan_id' and not reference and not self._valid_source(source):
+                    continue
+                if all(source is not existing for existing in proposal.dependencies):
+                    proposal.dependencies.append(source)
+                    self.trace.event("dependency_bound", function=proposal.name,
+                                     source_proposal_id=source.correlation.get("proposal_id"),
+                                     proposal_id=proposal.correlation.get("proposal_id"), argument=key)
 
     def finish_response(self):
         if (
@@ -382,8 +486,9 @@ class Coordinator:
                         # An unlabelled replacement belongs only to the immediately
                         # preceding entity, never another document or resource.
                         all_labels = spec.identifiers[key]
+                        local_prefix = re.split(r"\b(?:and|then|also)\b|[;—]", prefix, flags=re.I)[-1]
                         anchors = re.findall(
-                            r"\b(" + "|".join(map(re.escape, all_labels)) + r")s?\b", prefix, re.I
+                            r"\b(" + "|".join(map(re.escape, all_labels)) + r")s?\b", local_prefix, re.I
                         )
                         if anchors and anchors[-1].casefold() in labels:
                             replacement = identifier_candidates(labels[0] + " " + tail, labels)
@@ -541,6 +646,7 @@ class Coordinator:
                     retained_context=proposal.retained_context,
                     sequence=proposal.sequence,
                 )
+                self._capture_dependencies(proposal)
             except InvalidCall as exc:
                 proposal.validation_error = str(exc)
                 proposal.state = "rejected"
@@ -619,11 +725,15 @@ class Coordinator:
         with self.trace.bind(**proposal.correlation):
             try:
                 result = await self._execute(spec, proposal)
+                if result.get("status") == "error":
+                    self._recovery_errors[proposal.input_id] = self._recovery_errors.get(proposal.input_id, 0) + 1
                 self.trace.event(
                     "tool_result_delivered", function=spec.name, status=result.get("status")
                 )
                 return result
             except InvalidCall as exc:
+                if not isinstance(exc, ClarificationRequired):
+                    self._recovery_errors[proposal.input_id] = self._recovery_errors.get(proposal.input_id, 0) + 1
                 proposal.state = "rejected"
                 self.trace.event("tool_validation_failed", function=spec.name, reason=str(exc))
                 raise
@@ -644,13 +754,28 @@ class Coordinator:
                 self._pending_proposals.pop(proposal.sequence, None)
 
     async def _execute(self, spec, proposal):
+        limit = getattr(self.backend, "recovery_limit", 0)
+        if (self.settings.policy == "guarded" and limit
+            and self._recovery_errors.get(proposal.input_id, 0) >= limit):
+            self.trace.event("recovery_paused", function=spec.name, input_id=proposal.input_id,
+                             failed_attempts=self._recovery_errors[proposal.input_id])
+            raise ClarificationRequired(
+                "I couldn't complete that request safely. Please clarify which task or event you mean and the change you want. I have stopped retrying; completed actions remain recorded.",
+                proposal.input_id,
+            )
         gate_start = time.monotonic()
         await self._settle(proposal)
         text = self._inputs[proposal.input_id]
         self._normalize_proposal(proposal)
         if proposal.validation_error:
             raise InvalidCall(proposal.validation_error)
+        if self.settings.policy == "guarded" and any(
+            not self._valid_source(source, fresh=proposal.writes) for source in proposal.dependencies
+        ):
+            raise InvalidCall("A prerequisite result was invalidated; obtain a current result before acting.")
         args = proposal.args
+        if self.settings.policy == "guarded" and undecided_read(text, args, self._scope(proposal)):
+            raise InvalidCall("The requested alternative is undecided; clarify before execution.")
         self.trace.event("tool_proposed", function=spec.name, args=args, revision=proposal.revision)
         if self.settings.policy == "guarded":
             self._check_references(spec, args, text)
@@ -666,6 +791,9 @@ class Coordinator:
         # This transition has no await: validation, lookup and ownership are atomic
         # on the session event loop. No lock or scheduler-dependent revision read.
         op = self.operations.get(signature) if self.settings.policy == "guarded" else None
+        if self.settings.policy == "guarded" and not spec.writes and (op is None or not self._reusable_read(op)):
+            op = next((saved for saved in reversed(list(self._known_operations()))
+                       if saved.name == spec.name and saved.args == args and self._reusable_read(saved)), None)
         if op and op.superseded:
             if op.writes and op.dispatched:
                 raise Superseded(
@@ -678,7 +806,7 @@ class Coordinator:
             and op.task.done()
             and (
                 op.outcome not in {"success", *UNSETTLED}
-                or (op.outcome not in UNSETTLED and not spec.cache_result)
+                or (op.outcome not in UNSETTLED and not spec.cache_result and not self._reusable_read(op))
             )
         ):
             op = None
@@ -732,6 +860,10 @@ class Coordinator:
                 original_revision=op.revision,
                 original_proposal_id=op.correlation.get("proposal_id"),
             )
+            if not op.writes:
+                self.trace.event("read_result_reused", function=spec.name, args=args,
+                                 in_flight=not op.task.done(), source_revision=op.revision,
+                                 source_proposal_id=op.correlation.get("proposal_id"))
         self._pending_proposals.pop(proposal.sequence, None)
         try:
             result = await asyncio.shield(op.task)
@@ -741,7 +873,9 @@ class Coordinator:
                     "Tool preparation was superseded by corrected user input."
                 ) from None
             raise
-        if self.settings.policy == "guarded" and (op.superseded or proposal.superseded):
+        if self.settings.policy == "guarded" and (
+            op.superseded or proposal.superseded or (not op.writes and not self._valid_source(op))
+        ):
             self.trace.event(
                 "stale_result_suppressed",
                 function=spec.name,
@@ -791,6 +925,8 @@ class Coordinator:
                             "A preceding write has an uncertain outcome; do not dispatch another write to that resource."
                         )
             if self.settings.policy == "guarded":
+                if any(not self._valid_source(source, fresh=op.writes) for source in op.dependencies):
+                    raise InvalidCall("A prerequisite changed before dispatch; re-plan from current results.")
                 self._check_references(op.spec, op.args, self._inputs[op.input_id])
             op.dispatched = True
             op.state = "dispatched"
@@ -801,6 +937,13 @@ class Coordinator:
                 revision=op.revision,
                 writes=op.writes,
             )
+            invalidate = getattr(self.backend, "invalidates_reads", None)
+            if op.writes and invalidate:
+                names = invalidate(op.name, op.args)
+                for read in self._known_operations():
+                    if not read.writes and read.name in names:
+                        read.cache_invalidated = True
+                self._rebuild_results()
             start = time.time()
             monotonic_start = time.monotonic()
             op.result = await asyncio.wait_for(
@@ -813,7 +956,9 @@ class Coordinator:
                 op.error = str(op.result.get("message", "Tool returned an error"))
             elif op.result.get("status") in {"success", "completed", "ok"}:
                 outcome = "success"
-                if not op.superseded:
+                if not op.superseded and (
+                    self.settings.policy == "baseline" or op.writes or self._valid_source(op)
+                ):
                     self.results.setdefault(op.name, []).append(op.result)
             elif op.result.get("status") in UNSETTLED | {
                 "approval_required",
@@ -845,6 +990,7 @@ class Coordinator:
             ) from None
         finally:
             op.outcome = outcome
+            op.completed_at = time.monotonic()
             op.state = (
                 "successful"
                 if outcome == "success"
@@ -914,6 +1060,7 @@ class Coordinator:
                     "outcome": o.outcome,
                     "result_summary": o.result,
                     "error": o.error,
+                    "dependencies": [p.correlation.get("proposal_id") for p in o.dependencies],
                     **o.correlation,
                 }
                 for o in self.operations.values()

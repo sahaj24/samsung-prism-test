@@ -9,6 +9,7 @@ import sqlite3
 import time
 import uuid
 from contextlib import contextmanager
+from dataclasses import replace
 from datetime import date, datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -16,7 +17,7 @@ from zoneinfo import ZoneInfo
 from .catalog import S, ToolSpec
 from .config import ROOT
 from .google_workspace import GoogleAPIError, GoogleWorkspace, MutationRevoked
-from .intent import IMPLICIT_CORRECTION
+from .intent import GOAL_RESET, IMPLICIT_CORRECTION, affected_indices
 from .workspace_management import CHANGE_FIELDS, MANAGEMENT_NAMES, MANAGEMENT_TOOLS, REMINDERS, TASK_STATUS, WorkspaceManagement, event_time, reminder_values
 
 
@@ -98,6 +99,17 @@ PRODUCTIVITY_TOOLS = MANAGEMENT_TOOLS + [
     ),
 ]
 
+# Runtime policy metadata only: public Gemini/Gemma JSON tool declarations are unchanged.
+ACTION_SCOPE = {
+    "calendar": ("calendar", "event", "meeting", "appointment"),
+    "task": ("task", "todo"), "email": ("email", "mail", "message", "draft"),
+    "shopping": ("shopping", "item"),
+}
+READ_KIND = {"search_gmail": "email", "get_gmail_message": "email",
+             "list_tasks": "task", "list_task_lists": "task", "list_calendar_events": "calendar"}
+PRODUCTIVITY_TOOLS = [replace(s, intent_scope=ACTION_SCOPE[READ_KIND[s.name]], reuse_for_s=15)
+                      if s.name in READ_KIND else s for s in PRODUCTIVITY_TOOLS]
+
 APPROVAL = re.compile(
     r"\s*(?:yes[,.! ]*)?(?:yes|yeah|sure|okay|ok|please do|do it|do that|go ahead|go ahead and do it|"
     r"confirm(?: the plan)?|approve(?: the plan)?|execute(?: the plan)?|"
@@ -108,6 +120,8 @@ APPROVAL = re.compile(
 
 def requires_confirmation(action):
     """Fail closed for unknown capabilities; personal reversible writes are automatic."""
+    if action.get("owner_confirmation_required"):
+        return True
     if action.get("operation") == "delete" or action.get("consequential"):
         return True
     if action["kind"] == "email":
@@ -183,9 +197,37 @@ class PlanStore:
             "actions": [{**a, "status": "pending"} for a in actions],
         }
         with self.connect() as db:
-            db.execute(
-                "UPDATE plans SET status='superseded' WHERE room=? AND status='prepared'", (room,)
-            )
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute("SELECT document,status FROM plans WHERE id=? AND room=?",
+                             (plan_id, room)).fetchone()
+            if row and row[1] != "superseded":
+                return {**json.loads(row[0]), "status": row[1]}
+            # Transfer overlapping *pending* work atomically. A complete revised
+            # plan may repeat unchanged actions; only its new owner may send them.
+            # Unrelated actions and all dispatched receipts keep their ownership.
+            rows = db.execute("SELECT document,status FROM plans WHERE room=? AND status IN ('prepared','running')",
+                              (room,)).fetchall()
+            for document, status in rows:
+                old = json.loads(document)
+                selected = set()
+                for index, action in enumerate(old["actions"]):
+                    if not any(all(action.get(k) == v for k, v in new.items()) for new in actions):
+                        continue
+                    if action["status"] in {"running", "unknown", "completed"}:
+                        raise ValueError("A matching action was already dispatched in plan " + old["plan_id"] + "; inspect its outcome and prepare only remaining actions.")
+                    if action["status"] in {"pending", "approval_required"}:
+                        selected.add(index)
+                        action["status"] = "not_executed" if status == "running" else "superseded"
+                if not selected:
+                    continue
+                old.update(approved=False, revoked_at_revision=revision,
+                           revoked_actions=sorted(set(old.get("revoked_actions", [])) | selected))
+                if status == "prepared" and not any(
+                    a["status"] in {"pending", "approval_required"} for a in old["actions"]
+                ):
+                    old["status"] = "superseded" if all(a["status"] == "superseded" for a in old["actions"]) else "partial"
+                db.execute("UPDATE plans SET status=?,document=? WHERE id=?",
+                           (old["status"], json.dumps(old), old["plan_id"]))
             db.execute(
                 "INSERT OR REPLACE INTO plans VALUES (?,?,?,?,?)",
                 (plan_id, room, "prepared", json.dumps(value), time.time()),
@@ -199,7 +241,7 @@ class PlanStore:
             raise ValueError("No pending action in this conversation.")
         return self.get(room, row[0])
 
-    def invalidate(self, room, revision):
+    def invalidate(self, room, revision, select=None):
         """Revoke uncommitted plans atomically, including dashboard approvals."""
         invalidated = []
         with self.connect() as db:
@@ -210,12 +252,19 @@ class PlanStore:
             for document, status in rows:
                 value = json.loads(document)
                 value.update(approved=False, revoked_at_revision=revision)
-                if status == "prepared":
-                    value["status"] = "superseded"
-                    for action in value["actions"]:
-                        if action["status"] in {"pending", "approval_required"}:
-                            action["status"] = "superseded"
-                else:
+                selected = set(range(len(value["actions"]))) if select is None else select(value["actions"])
+                value["revoked_actions"] = sorted(set(value.get("revoked_actions", [])) | selected)
+                for index, action in enumerate(value["actions"]):
+                    if index in selected and action["status"] in {"pending", "approval_required"}:
+                        action["status"] = "not_executed" if status == "running" else "superseded"
+                if status == "prepared" and not any(
+                    a["status"] in {"pending", "approval_required"} for a in value["actions"]
+                ):
+                    value["status"] = (
+                        "superseded" if all(a["status"] == "superseded" for a in value["actions"])
+                        else "partial"
+                    )
+                elif status == "running" and select is None:
                     value["cancel_requested"] = True
                 db.execute("UPDATE plans SET status=?,document=? WHERE id=?",
                            (value["status"], json.dumps(value), value["plan_id"]))
@@ -239,6 +288,14 @@ class PlanStore:
                                                 current.get("lease_expires_at", 0))
             if current.get("cancel_requested"):
                 value.update(cancel_requested=True, approved=False)
+            if current.get("revoked_at_revision") is not None:
+                value["revoked_at_revision"] = current["revoked_at_revision"]
+                value["revoked_actions"] = current.get("revoked_actions", [])
+                if not current.get("approved"):
+                    value["approved"] = False
+                for index in value["revoked_actions"]:
+                    if value["actions"][index]["status"] in {"pending", "approval_required"}:
+                        value["actions"][index]["status"] = current["actions"][index]["status"]
             db.execute(
                 "UPDATE plans SET status=?,document=? WHERE id=? AND room=?",
                 (value["status"], json.dumps(value), value["plan_id"], value["room"]),
@@ -302,7 +359,7 @@ class PlanStore:
             db.execute("UPDATE plans SET document=? WHERE id=?", (json.dumps(value), plan_id))
             return True
 
-    def approve(self, room, plan_id, source="dashboard"):
+    def approve(self, room, plan_id, source="dashboard", expected_revision=None):
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute(
@@ -311,6 +368,10 @@ class PlanStore:
             if not row or row[1] != "prepared":
                 raise ValueError("Only the current prepared plan can be approved.")
             value = json.loads(row[0])
+            if expected_revision is not None and value.get("revision", 0) != expected_revision:
+                raise ValueError("The plan revision changed; review the current event.")
+            if any(a.get("owner_confirmation_required") for a in value["actions"]) and (source != "dashboard" or expected_revision is None):
+                raise ValueError("The owner must confirm the current revision using Owner confirm; shared microphone speech cannot authorize a write.")
             value["approved"] = True
             value["approved_at_revision"] = value.get("revision", 0)
             value["approval"] = {"id": uuid.uuid4().hex, "at": time.time(),
@@ -489,6 +550,7 @@ def same_values(left, right):
 
 class ProductivityBackend:
     requires_final_input = True
+    recovery_limit = 3
 
     def __init__(self, room, trace=None, google=None, store=None):
         self.room, self.trace = room, trace
@@ -504,20 +566,140 @@ class ProductivityBackend:
         self.input_final = True
         self.confirmation_context = None
         self.management = WorkspaceManagement(self)
+        self.editing_kinds = set()
+        self.creation_exceptions = {}
+        self.response_report = []
+        self.response_reports = {}
+
+    def response_correction(self, text):
+        """Conservative check of explicit operation claims, not a semantic judge.
+
+        Native audio can precede this transcript. The caller keeps the actual
+        transcript and requests a correction; it never relabels already heard audio.
+        """
+        claims = re.finditer(
+            r"\b(?:i(?:['’]ve| have)?|we(?:['’]ve| have)?)(?: successfully)?\s+"
+            r"(created|added|updated|deleted|removed|scheduled|rescheduled|moved|changed|sent|completed)\b|"
+            r"\b(?:has|have) been (created|added|updated|deleted|removed|scheduled|rescheduled|moved|changed|sent|completed)\b",
+            text or "", re.I)
+        unsupported = False
+        facts = [(turn, r) for turn, rows in self.response_reports.values() for r in rows]
+        generic = {"your", "the", "a", "an", "new", "existing", "all", "requested", "that", "this", "it", "them", "for", "of", "time", "notes", "date", "status", "details", "now", "successfully"}
+        for claim in claims:
+            verb = next(v for v in claim.groups() if v).casefold()
+            clause = re.split(r"[.!?;]|\b(?:but|shall|should)\b", text[claim.end():], maxsplit=1, flags=re.I)[0]
+            named = [r for _, r in facts if r["title"].casefold() not in generic | {"task", "event", "email"}
+                     and re.search(r"(?<!\w)" + re.escape(r["title"]) + r"(?!\w)", clause, re.I)]
+            kind_clause = clause
+            for row in named:
+                kind_clause = re.sub(r"(?<!\w)" + re.escape(row["title"]) + r"(?!\w)", "", kind_clause, flags=re.I)
+            kind = re.search(r"\b(tasks?|events?|calendar|drafts?|emails?|messages?)\b", kind_clause, re.I)
+            kinds = ({"task"} if kind and kind.group(0).lower().startswith("task") else
+                     {"calendar"} if kind and kind.group(0).lower() in {"calendar", "event", "events"} else
+                     {"email"} if kind else {"task", "calendar", "email", "shopping"})
+            if named:
+                candidates = [r for r in named if r["kind"] in kinds]
+            else:
+                prefix = kind_clause[:kind.start()] if kind else kind_clause
+                unknown_name = set(re.findall(r"[a-z]+", prefix.casefold())) - generic
+                candidates = [r for turn, r in facts if turn == self.input_counter and r["kind"] in kinds] if not unknown_name else []
+            confirmed = [r for r in candidates if r["confirmed"]]
+            operations = {r["operation"] for r in confirmed}
+            if verb == "completed":
+                valid = bool(confirmed) and len(confirmed) == len(candidates)
+                if re.search(r"\btasks?\b", clause, re.I):
+                    valid = valid and any(r["operation"] in {"create", "update"} and r.get("task_status") == "completed" for r in confirmed)
+            elif verb == "sent":
+                valid = any(r.get("delivery_result") == "sent" for r in confirmed)
+            else:
+                operation = "delete" if verb in {"deleted", "removed"} else "update" if verb in {"updated", "changed", "moved", "rescheduled"} else "create"
+                valid = operation in operations
+            unsupported |= not valid
+        if re.search(r"\b(?:still working|working on deleting|slight delay|update you shortly)\b", text or "", re.I):
+            unsupported |= not any(r["status"] == "running" for _, r in facts)
+        if unsupported:
+            return "I cannot confirm that claimed action. " + " ".join(r["summary"] for r in self.response_report) + " Please clarify or confirm the pending action before I proceed."
+        return None
+
+    def _observe_resource_intent(self, text, is_final):
+        if GOAL_RESET.search(text) and is_final:
+            self.editing_kinds.clear()
+            self.creation_exceptions.clear()
+        edited, created = set(), {}
+        for clause in re.split(r"\b(?:and|also|then)\b|[.;]", text, flags=re.I):
+            kinds = {kind for kind, labels in ACTION_SCOPE.items() if kind in {"task", "calendar"}
+                     and any(re.search(r"\b" + label + r"s?\b", clause, re.I) for label in labels)}
+            creating = bool(re.search(
+                r"\b(?:create|add|make)\s+(?:(?:a|an|one|two|three|few|some|another|new|separate)\s+)*(?:tasks?|todos?|events?|calendar event)\b|\badd\b.+\bto (?:my |the )?tasks\b",
+                clause, re.I))
+            if re.search(r"\bschedule\b", clause, re.I) and not re.search(r"\b(?:that|existing)\b", clause, re.I):
+                creating, kinds = True, {"calendar"}
+            if creating:
+                created.update({kind: clause for kind in kinds})
+            elif re.search(r"\b(?:move|reschedule|rename|update|edit|change|delete|remove|complete|reopen|mark|fill)\b", clause, re.I):
+                if not kinds:
+                    group = self.management.latest_group or {}
+                    kinds = {i["kind"] for i in group.get("items", [])} or self.editing_kinds
+                edited.update(kinds)
+            if re.search(r"\b(?:move|copy|put)\b.*\b(?:to|into|on) (?:the |my )?calendar\b", clause, re.I):
+                edited.discard("calendar")  # Explicit task-to-calendar creation.
+                created["calendar"] = clause
+            if re.search(r"\bremind me to\b", clause, re.I):
+                created["task"] = clause
+        self.editing_kinds.update(edited)
+        for kind in edited:
+            self.creation_exceptions.pop(kind, None)
+        if is_final:
+            additive = bool(re.match(r"\s*(?:also|and|then|in addition)\b", text, re.I))
+            for kind, clause in created.items():
+                if kind in edited or (additive and kind in self.editing_kinds):
+                    self.creation_exceptions[kind] = clause
+                else:
+                    self.editing_kinds.discard(kind)
+                    self.creation_exceptions.pop(kind, None)
+
+    def _guard_creation(self, actions):
+        def explicit_new(action):
+            clause = self.creation_exceptions.get(action["kind"], "")
+            match = re.search(r"\b(?:tasks?|events?|calendar event)\s+(?:(?:to|called|named|titled|for)\s+)?(.+)|^\s*schedule\s+(.+)|\bremind me to\s+(.+)", clause, re.I)
+            if not match or not action.get("title"):
+                return False
+            body = next(v for v in match.groups() if v).strip()
+            # Match the new item's complete noun phrase, not a substring shared
+            # with the edited item ("Exercise" vs "Buy Exercise equipment").
+            return bool(re.match(re.escape(action["title"]) + r"(?:\s*$|[,.]|\s+(?:at|on|due|tomorrow|today|next)\b)", body, re.I))
+        if any(a["kind"] in self.editing_kinds and a.get("operation", "create") == "create"
+               and not explicit_new(a)
+               for a in actions):
+            raise ValueError("This request modifies an existing resource, not a new creation. Use list_tasks/list_calendar_events, resolve the user's selection, then prepare_resource_change and execute_plan on its real ID. Ask which item if ambiguous. No replacement was created.")
+
+    def reference_is_locator(self, name, key, value):
+        # Configured/listed containers remain read authority when an unrelated
+        # plan containing the same ID is superseded. The Google adapter validates
+        # membership again; an ID's occurrence inside a plan is not a dependency.
+        return name == "list_tasks" and key == "task_list_id" and value in self.management.known_lists
 
     def observe_input(self, text, *, is_final=True, revision=None):
         if text and text.strip():
+            previous = self.latest_input
             if not APPROVAL.fullmatch(text):
                 self.confirmation_context = None
             self.latest_input = text.strip()
             self.input_final = is_final
+            self._observe_resource_intent(text, is_final)
             self.revision = self.revision if revision is None else revision
             # Interim text may revoke approval, but can never grant it. Any
             # substantive follow-up requires a fresh review; acknowledgements do not.
             if not APPROVAL.fullmatch(text) and text.strip().casefold().strip('.!') not in {
                 "mhm", "uhhuh", "okay", "ok", "right", "yeah", "thanks"
             }:
-                invalidated = self.store.invalidate(self.room, self.revision)
+                additive = bool(re.match(r"\s*(?:also|and|then|meanwhile|in addition)\b", text, re.I))
+                def select(actions):
+                    if additive and not (GOAL_RESET.search(text) or IMPLICIT_CORRECTION.search(text)
+                                         or re.search(r"\bactually\b", text, re.I)):
+                        return set()
+                    return affected_indices(text, previous, [(a, ACTION_SCOPE.get(a["kind"], (a["kind"],))) for a in actions])
+                invalidated = self.store.invalidate(self.room, self.revision, select)
                 if self.trace:
                     for plan in invalidated:
                         if plan.get("approval"):
@@ -526,6 +708,8 @@ class ProductivityBackend:
                         self.publish(plan)
             if is_final:
                 self.input_counter += 1
+                if not APPROVAL.fullmatch(text) and text.strip().casefold().strip('.!') not in {"mhm", "uhhuh", "okay", "ok", "right", "yeah", "thanks"}:
+                    self.management.observe_input(text)
                 if APPROVAL.fullmatch(text) and self.confirmation_context:
                     plan_id, prompted_at = self.confirmation_context
                     if prompted_at == self.input_counter - 1:
@@ -534,6 +718,35 @@ class ProductivityBackend:
                         except ValueError:
                             pass  # A corrected, completed or already running plan cannot be approved.
                     self.confirmation_context = None
+
+    def proposal_subject(self, name, args):
+        if name in {"execute_plan", "get_plan", "reconcile_plan", "prepare_change"}:
+            try:
+                actions = self.store.get(self.room, args["plan_id"])["actions"]
+                return actions, tuple(label for a in actions for label in ACTION_SCOPE.get(a["kind"], ()))
+            except (KeyError, ValueError):
+                pass
+        return args, ()
+
+    def can_reuse(self, name, args, result):
+        if name in {"list_tasks", "list_calendar_events"}:
+            # Never restore an old result group's selection/numbering over a newer lookup.
+            ignored = {"task_list_id", "page_token"} if name == "list_tasks" else {"page_token"}
+            key = (READ_KIND[name], json.dumps({k:v for k,v in args.items() if k not in ignored}, sort_keys=True))
+            group = self.management.searches.get(key)
+            return group is self.management.latest_group and group is not None and all(
+                self.management.groups.get(item["resource_ref"]) is group for item in result.get("items", []))
+        return True
+
+    def invalidates_reads(self, name, args):
+        if name != "execute_plan":
+            return set()
+        try:
+            kinds = {a["kind"] for a in self.store.get(self.room, args["plan_id"])["actions"]
+                     if a["status"] in {"pending", "running", "approval_required"}}
+        except ValueError:
+            return set()
+        return {read for read, kind in READ_KIND.items() if kind in kinds} | {"get_workspace_item"}
 
     def observe_assistant(self, text, *, interrupted=False):
         """Bare affirmatives require an actual, action-specific confirmation question."""
@@ -560,7 +773,29 @@ class ProductivityBackend:
         plan["requires_confirmation"] = pending_confirmation(plan)
         if self.trace:
             self.trace.event("plan_updated", plan=plan)
-        return {"status": "success", "plan": plan}
+        report = []
+        for index, action in enumerate(plan["actions"]):
+            operation = action.get("operation", "create")
+            resource_id = action.get("google_id") or action.get("target", {}).get("id")
+            receipt = action.get("receipt", {})
+            confirmed = (action["status"] == "completed" and bool(resource_id)
+                         and receipt.get("id") == resource_id
+                         and (operation != "delete" or receipt.get("verified_absent") is True))
+            verb = {"create": "Created", "update": "Updated", "delete": "Deleted", "lookup": "Retrieved"}[operation]
+            label = action.get("title") or action.get("subject") or action.get("item", "item")
+            status = action["status"] if action["status"] != "completed" or confirmed else "unverified"
+            report.append({"action_index": index, "operation": operation, "resource_id": resource_id,
+                           "kind": action["kind"], "title": label,
+                           "confirmed": confirmed, "status": status,
+                           "summary": f'{verb} {action["kind"]} "{label}".' if confirmed else f'{action["kind"]} "{label}": {status}; no confirmed {operation} completion.',
+                           **({"task_status": action.get("current_values", {}).get("task_status", action.get("task_status")),
+                               "timing": "Google Tasks dates are date-only; a time in notes is text, not a timed notification."} if action["kind"] == "task" else {})})
+            if action["kind"] == "email":
+                report[-1]["delivery_result"] = action.get("delivery_result")
+        self.response_report = report
+        self.response_reports[plan["plan_id"]] = (self.input_counter, report)
+        return {"status": "success", "plan": plan, "report": report,
+                "response_guidance": "Use only the confirmed operation and resource ID in report for completion claims. Plan titles are not outcomes. Prepared/pending/approval_required are not completed. Failed or unknown is not deleted/updated; ask clarification or confirmation as required, never promise a background retry. Task action completion does not mean the task was marked complete. Do not invent a reason for duplicate objects."}
 
     async def prepare(self, name):
         await asyncio.sleep(0)
@@ -586,6 +821,7 @@ class ProductivityBackend:
                 }
             if name == "prepare_plan":
                 actions = validate_plan(args, self.google.config.time_zone)
+                self._guard_creation(actions)
                 if any(a.get("task_list_id", self.google.config.task_list_id) not in self.management.known_lists for a in actions if a["kind"] == "task"):
                     raise ValueError("Use a task list ID returned by list_task_lists.")
                 correcting = IMPLICIT_CORRECTION.search(self.latest_input) or re.search(r"\b(?:actually|instead|undo)\b", self.latest_input, re.I)
@@ -732,10 +968,13 @@ class ProductivityBackend:
         for index, action in enumerate(plan["actions"]):
             if action["status"] not in {"pending", "approval_required"}:
                 continue
-            if requires_confirmation(action) and not plan.get("approved"):
+            current = self.store.get(self.room, plan_id)
+            if index in current.get("revoked_actions", []):
+                action["status"] = "not_executed"
+                continue
+            if requires_confirmation(action) and not current.get("approved"):
                 action["status"] = "approval_required"
                 continue
-            current = self.store.get(self.room, plan_id)
             if current.get("cancel_requested") or not self.store.renew(self.room, plan_id, plan["lease_owner"]):
                 break
             operation_id = hashlib.sha256(f"{plan_id}:{index}".encode()).hexdigest()[:32]
@@ -781,7 +1020,10 @@ class ProductivityBackend:
                 raise
             except MutationRevoked as exc:
                 action.update(status="not_executed", error=str(exc))
-                break
+                current = self.store.get(self.room, plan_id)
+                if current.get("cancel_requested") or not self.input_final:
+                    break
+                continue  # A scoped correction must not discard unrelated personal actions.
             except GoogleAPIError as exc:
                 action.update(status="unknown" if exc.uncertain else "failed", error=str(exc),
                               error_receipt={"status_code": exc.status_code, "request_id": exc.request_id,
@@ -813,7 +1055,10 @@ class ProductivityBackend:
                 action["status"] = "not_executed"
         plan["status"] = (
             "completed" if all(a["status"] == "completed" for a in plan["actions"])
-            else "prepared" if all(a["status"] in {"completed", "approval_required"} for a in plan["actions"])
+            else "prepared" if any(a["status"] == "approval_required" for a in plan["actions"]) and all(
+                a["status"] in {"completed", "approval_required", "superseded", "not_executed"}
+                for a in plan["actions"]
+            )
             else "partial"
         )
         self.store.save(plan)
@@ -821,10 +1066,18 @@ class ProductivityBackend:
 
     def _authorize_action(self, plan, action=None):
         current = self.store.get(self.room, plan["plan_id"])
+        revoked = action is not None and any(a is action and i in current.get("revoked_actions", [])
+                                            for i, a in enumerate(plan["actions"]))
         if (current["status"] != "running" or current.get("cancel_requested")
+            or revoked
             or (action is not None and requires_confirmation(action) and not current.get("approved"))
             or not self.input_final or current.get("lease_owner") != plan["lease_owner"]):
             raise MutationRevoked("Approval or execution ownership changed before dispatch; no action was sent.")
+        if action is not None:
+            try:
+                self._guard_creation([action])
+            except ValueError as exc:
+                raise MutationRevoked(str(exc)) from None
 
     def _confirmed(self, action, remote, resource_id):
         operation = action.get("operation", "create")

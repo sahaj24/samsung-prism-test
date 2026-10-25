@@ -135,6 +135,27 @@ class WorkspaceManagement:
         self.latest_group = None
         self.searches = {}
         self.known_lists = {backend.google.config.task_list_id}
+        self.selection = None
+
+    @staticmethod
+    def ordinal(text):
+        words = ["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth", "tenth"]
+        match = re.search(r"\b(?:" + "|".join(words) + r")\b(?=\s+(?:one|task|event|item|result|option)\b|\s*[.!?]?\s*$)|\b(?:number|item|option)\s+(\d+)\b|^\s*(\d+)\s*[.!]?\s*$", text, re.I)
+        if not match:
+            return None
+        if re.search(r"\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s*$", text[:match.start()], re.I):
+            return None  # "November second" is a date, not selection #2.
+        return words.index(match.group(0).casefold()) + 1 if match.group(0).casefold() in words else int(match.group(1) or match.group(2))
+
+    def observe_input(self, text):
+        # Bind spoken numbering to what the user had actually seen, before the
+        # model can refresh/reorder a list in response to that same turn.
+        self.selection = None
+        group = self.latest_group
+        number = self.ordinal(text)
+        if group and not group["more"] and number and 0 < number <= len(group["items"]):
+            item = group["items"][number - 1]
+            self.selection = (item["kind"], item["container_id"], item["id"])
 
     def record(self, kind, container, resource):
         from .productivity import remote_values
@@ -206,6 +227,10 @@ class WorkspaceManagement:
         item = self.snapshot(ref)
         text = self.backend.latest_input.casefold()
         group = self.groups.get(ref)
+        if self.selection and self.selection[0] == item["kind"]:
+            if self.selection == (item["kind"], item["container_id"], item["google_id"]):
+                return
+            raise ValueError("This item differs from the user's selected resource. Ask which task/event; do not reinterpret its number after a refresh.")
         if (
             re.search(
                 r"\b(?:id|identifier)\s+"
@@ -223,29 +248,7 @@ class WorkspaceManagement:
                 self.focus = ref
                 return
             # An explicit numbered answer must agree with the actual user's final turn.
-            match = re.search(
-                r"\b(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth)\b|\b(?:number|item|option)\s+(\d+)\b|^\s*(\d+)\s*[.!]?\s*$",
-                text,
-            )
-            ordinal = None
-            if match:
-                words = [
-                    "first",
-                    "second",
-                    "third",
-                    "fourth",
-                    "fifth",
-                    "sixth",
-                    "seventh",
-                    "eighth",
-                    "ninth",
-                    "tenth",
-                ]
-                ordinal = (
-                    words.index(match.group(0)) + 1
-                    if match.group(0) in words
-                    else int(match.group(1) or match.group(2))
-                )
+            ordinal = self.ordinal(text)
             if (
                 group is self.latest_group
                 and self.backend.input_counter > group["after"]

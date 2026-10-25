@@ -8,7 +8,9 @@ This document describes current runtime contracts, not a new benchmark score or 
 
 A genuine correction supersedes uncommitted affected work. Assistant speech interruption alone does not cancel valid intent. Dispatched operations retain their real outcome even when the response caller detaches. Stale results are not promoted as current results. Identifier checks are opt-in by entity/field; they do not fuzzy-match unrelated identifiers or rewrite free-form Workspace content.
 
-Equivalent in-flight proposals coalesce. Only confirmed terminal results qualify for reuse; approval-required, pending, partial, failed and unknown operations are not successful completion. Non-cacheable planning/status/lookup tools re-read their source. The controller is room-local and does not read benchmark labels or retain scenario state across rooms.
+Equivalent in-flight proposals coalesce; waiters share the eventual actual outcome. Only confirmed successful results qualify for completed-result reuse; approval-required, pending, partial, failed and unknown operations are not successful completion. Opted-in Gmail/Tasks/Calendar reads have a 15-second session snapshot window. Explicit refresh, relevant write attempts, corrected source inputs, expiry and changed lookup selection prevent snapshot reuse. Planning/status/reconciliation tools continue to re-read their source. The controller is room-local and does not read benchmark labels or retain scenario state across rooms.
+
+Corrections use entity/field evidence and, when unique, the preceding clause's referent. Ambiguous corrections invalidate pending work conservatively. Exact typed ID/ref dependencies propagate source corrections; fresh ID-based reads can refresh expired snapshots, while mutations require current source evidence. Unaffected reads and unrelated actions survive scoped corrections. Preparing a complete replacement transfers overlapping pending actions atomically rather than creating two executable copies. See [selective recovery and manual checks](SELECTIVE_RECOVERY.md) for limits and offline comparison results.
 
 ## Workspace execution
 

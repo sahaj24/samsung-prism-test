@@ -14,6 +14,8 @@ class ToolSpec:
     cache_result: bool = True
     retained_slots: tuple[str, ...] = ()
     identifiers: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    intent_scope: tuple[str, ...] = ()
+    reuse_for_s: float = 0
 
     @property
     def schema(self):

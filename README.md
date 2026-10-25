@@ -80,6 +80,10 @@ OAuth state and PKCE are checked during connection. Tokens are stored in the ign
 
 ## Run the live demo
 
+For one-click startup on this laptop, open **Reprise** on the Desktop, or run `./start-reprise.sh`. The launcher starts the dashboard and Gemini Live worker, waits for dashboard/LiveKit readiness, and opens the browser. Repeated launches reuse its running processes. Logs are saved under `runs/launcher/`. It uses the existing `.env`/`.env.local` and Python environment; Gemini connects when you start a conversation. The optional local Gemma server is separate. `Reprise.desktop` contains this laptop's absolute checkout path.
+
+To start the services individually instead:
+
 Start both processes from the repository root in separate terminals:
 
 ```sh
@@ -94,10 +98,14 @@ Start both processes from the repository root in separate terminals:
 
 The wrapper synchronizes the frozen Python dependencies before launching. The demo does not require downloading FDB or its recordings. Open **http://127.0.0.1:8844/**, connect Google, choose **Start conversation**, permit microphone access, and wait for both **LiveKit** and **Gemini** to show connected. Use headphones or an echo-controlled microphone. If browser audio playback is blocked, interact with the page to enable it.
 
-The interface has exactly two main information panels:
+The Galaxy-inspired demo places an interactive browser phone on the left, the live conversation on the right, and the execution timeline below. The phone contains the real session/microphone/playback controls, latest transcript and native-style app navigation. It is a frontend concept, not a mirrored Samsung device.
+
+For the scripted launch presentation, choose **Demo → Full demo · 1:40 → Play**. The Chennai booking, linked calendar meeting and Bengaluru-to-Mumbai interruption use synthetic playback data and make no external writes. The real assistant remains under **Live**. [Presentation controls and evidence boundary](docs/GALAXY_DEMO.md).
+
+The two information panels remain separate:
 
 - **Conversation:** live/final user and assistant transcripts with speaker labels and timestamps.
-- **Actions & Status:** actual tool arguments, retrieved items, corrections, supersession, dispatch, receipts, failures and unknown outcomes. The current plan and any required confirmation stay inside this panel.
+- **Actions & Status:** horizontally scrollable, chronological tool activity with actual arguments, retrieved items, corrections, supersession, dispatch, receipts, failures and unknown outcomes. Use the arrow controls, keyboard or scrolling to review the history. The current plan and any required confirmation appear above the execution strip in Live mode; confirmation still uses the existing backend authorization path.
 
 Use disposable Google objects for manual writes. Ask to read tasks or events first, then create an item, correct it before dispatch, and reschedule or edit it after completion. Check that post-dispatch edits retain the same Google ID. Deletion and invitations must wait for contextual confirmation; personal creation and ordinary reversible edits execute after intent settles. [Exact manual checklist](docs/WORKSPACE_MANAGEMENT.md#manual-testing-checkpoint).
 
@@ -124,3 +132,12 @@ Controller tests using the public mock tools require `./reproduce.sh setup` once
 | `src/reprise/demo_server.py`, `demo/` | Local API, two-panel interface and live updates |
 
 Built on [LiveKit Agents](https://docs.livekit.io/agents/), [Gemini Live](https://ai.google.dev/gemini-api/docs/live), and the public [Full-Duplex-Bench v3](https://github.com/DanielLin94144/Full-Duplex-Bench/tree/main/v3). Benchmark implementation and data remain separate from the Workspace extension.
+
+### Phase 4: Galaxy apps and optional local planning
+
+The existing Google account connection can expose Calendar changes in Samsung Calendar,
+mail in the Galaxy Gmail app and tasks in Google Tasks. Follow [Galaxy synchronization
+and manual verification](docs/GALAXY_SYNC.md); API receipts alone do not prove phone sync.
+The optional [Gemma E2B local planner](docs/LOCAL_PLANNER.md) is experimental and text-only.
+Gemini Live remains the default voice backend. Native Clock/Bixby/Samsung Reminder integration
+is not implemented.

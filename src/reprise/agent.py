@@ -22,7 +22,7 @@ from livekit.plugins import google
 from .backend import FDBBackend
 from .catalog import TOOLS, ToolSpec
 from .config import ROOT, Settings, credential, source_digest
-from .coordinator import Coordinator, InvalidCall, OutcomeUnknown, Superseded
+from .coordinator import ClarificationRequired, Coordinator, InvalidCall, OutcomeUnknown, Superseded
 from .prompts import BENCHMARK_PROMPT, PRODUCTIVITY_PROMPT
 from .session_events import attach_session_events
 from .speech import watch_microphone
@@ -39,6 +39,16 @@ def make_tool(spec: ToolSpec, coordinator: Coordinator):
                 response_id=context.speech_handle.id,
             )
         except Superseded:
+            raise StopResponse() from None
+        except ClarificationRequired as exc:
+            # Stop the non-blocking Live loop, not any already-dispatched write.
+            # Concurrent failed proposals can schedule only one clarification.
+            if exc.input_id == coordinator.current_input_id and exc.input_id not in coordinator._recovery_notices:
+                coordinator._recovery_notices.add(exc.input_id)
+                context.session.generate_reply(
+                    instructions="Say this clarification, then wait for the user. Do not claim success or promise background work: " + str(exc),
+                    tool_choice="none", tools=[],
+                )
             raise StopResponse() from None
         except (InvalidCall, OutcomeUnknown) as exc:
             coordinator.trace.event("tool_rejected", function=spec.name, reason=str(exc))
@@ -93,11 +103,24 @@ async def entrypoint(ctx: agents.JobContext):
         room_metadata = json.loads(ctx.room.metadata or "{}")
     except json.JSONDecodeError:
         room_metadata = {}
-    if room_name.startswith("reprise-demo-") and room_metadata.get("reprise_mode") in {"extension", "productivity", "benchmark"}:
+    if room_name.startswith("reprise-demo-") and room_metadata.get("reprise_mode") in {"extension", "productivity", "benchmark", "call_assist"}:
         settings = replace(settings, mode=room_metadata["reprise_mode"])
     directory = ROOT / "runs" / room_name
     trace = Trace(room_name, directory, Path("/tmp/agent_tool_calls.log"))
-    if settings.mode == "productivity":
+    if settings.mode == "call_assist":
+        from .call_assist import PROMPT, TOOLS as ASSIST_TOOLS, make_backend
+        provider = room_metadata.get("workspace_backend", "mock")
+        if provider not in {"mock", "google"}:
+            raise RuntimeError("Unsupported Call Assist workspace transport")
+        # A forged room flag cannot enable Google writes without server configuration.
+        if provider == "google":
+            from .call_assist import workspace_backend
+            if workspace_backend() != "google":
+                raise RuntimeError("Call Assist Google writes are disabled")
+        backend, specs, prompt = make_backend(room_name, directory, trace, provider), ASSIST_TOOLS, PRODUCTIVITY_PROMPT + PROMPT
+        trace.official_path = None
+        settings = replace(settings, tool_timeout_s=180)
+    elif settings.mode == "productivity":
         from .productivity import PRODUCTIVITY_TOOLS, ProductivityBackend
         backend, specs, prompt = ProductivityBackend(room_name, trace), PRODUCTIVITY_TOOLS, PRODUCTIVITY_PROMPT
         trace.official_path = None
@@ -112,7 +135,7 @@ async def entrypoint(ctx: agents.JobContext):
                 audio_clock_origin="not synchronized to client stream")
     session = AgentSession(llm=build_model(settings),
                            tools=[make_tool(s, coordinator) for s in specs],
-                           max_tool_steps=12 if settings.mode == "productivity" else 8)
+                           max_tool_steps=12 if settings.mode in {"productivity", "call_assist"} else 8)
     monitor_task = None
 
     attach_session_events(session, coordinator)
@@ -122,7 +145,7 @@ async def entrypoint(ctx: agents.JobContext):
             monitor_task.cancel()
             await asyncio.gather(monitor_task, return_exceptions=True)
         await coordinator.close()
-        if settings.mode == "productivity":
+        if settings.mode in {"productivity", "call_assist"}:
             await backend.close()
         trace.write_snapshot(coordinator.snapshot())
         trace.event("session_closed")

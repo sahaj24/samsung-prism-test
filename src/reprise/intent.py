@@ -14,6 +14,91 @@ DIGITS = dict(
     zip("zero one two three four five six seven eight nine".split(), "0123456789", strict=True)
 )
 
+GOAL_RESET = re.compile(
+    r"\b(?:never mind|scratch that|forget (?:it|that))(?:\s*[,.;!?]|$)|"
+    r"\b(?:never mind|forget|cancel|stop) (?:it )?(?:all|everything)\b|"
+    r"^\s*(?:actually[ ,]*)?(?:cancel|stop)(?: (?:it|that))?[.! ]*$|"
+    r"\bdifferent (?:goal|request)\b", re.I
+)
+REVISION_MARKER = re.compile(r"\b(?:actually|instead|rather|make (?:it|that)|change (?:it|that)|move (?:it|that))\b", re.I)
+REFRESH = re.compile(r"\b(?:refresh|latest|(?:check|search|look)\b.+\bagain)\b", re.I)
+
+
+def leaves(value):
+    if isinstance(value, dict):
+        for child in value.values():
+            yield from leaves(child)
+    elif isinstance(value, (tuple, list)):
+        for child in value:
+            yield from leaves(child)
+    elif isinstance(value, str):
+        yield value
+
+
+def scope_matches(text, values, scope=()):
+    """Lexical scope evidence only; never rewrites or fuzzy-matches an argument."""
+    labels = [*scope, *leaves(values)]
+    return any(label and re.search(r"(?<!\w)" + re.escape(label).replace('_', r'[\s_-]')
+                                  + r"(?:s)?(?!\w)", text, re.I) for label in labels)
+
+
+def affected_indices(text, previous, subjects):
+    """Explicit entity evidence, then a unique last-clause referent; otherwise fail closed."""
+    if GOAL_RESET.search(text):
+        return set(range(len(subjects)))
+    markers = list(REVISION_MARKER.finditer(text))
+    fragment = text[markers[-1].end():] if markers else text
+    def matches(fragment):
+        # A named item is stronger evidence than its shared domain ("task").
+        # Otherwise correcting one of two Tasks would discard both of them.
+        specific = {
+            i for i, (values, scope) in enumerate(subjects)
+            if scope_matches(fragment, [v for v in leaves(values)
+                                       if v.casefold() not in {s.casefold() for s in scope}])
+        }
+        return specific or {
+            i for i, (values, scope) in enumerate(subjects) if scope_matches(fragment, values, scope)
+        }
+    direct = matches(fragment)
+    if direct:
+        return direct
+    # Elliptical replacements ("actually six") refer only to a uniquely evidenced
+    # last clause. A multi-item/unclear clause invalidates pending work for re-planning.
+    context = text[:markers[-1].start()] if markers and text[:markers[-1].start()].strip(' ,—-') else previous
+    context = re.split(r"\b(?:and|then|also)\b|[;—]", context, flags=re.I)[-1]
+    focused = matches(context)
+    return focused if len(focused) == 1 else set(range(len(subjects)))
+
+
+def undecided_read(text, args, scope):
+    def freeform(value):
+        if isinstance(value, dict):
+            for key, child in value.items():
+                if key in {"title", "notes", "body"} and isinstance(child, str):
+                    yield child
+                else:
+                    yield from freeform(child)
+        elif isinstance(value, list):
+            for child in value:
+                yield from freeform(child)
+    wording = set(freeform(args))
+    for clause in re.split(r"\b(?:and|then|also)\b|[;]", text, flags=re.I):
+        if re.search(r"\b(?:undecided|not sure|not decided|haven't decided)\b", clause, re.I):
+            if scope_matches(clause, args, scope):
+                return True
+        if re.search(r"\b(?:compare|both|each|all alternatives)\b", clause, re.I):
+            continue
+        if re.search(r"\b(?:or|either)\b", clause, re.I):
+            # A full Boolean search query is one stable query. Choosing one side
+            # of a spoken alternative is different from searching the supplied OR.
+            for value in leaves(args):
+                checked = re.sub(r"\bor (?:something|anything)(?: like that)?\b", "", clause, flags=re.I) if value in wording else clause
+                if not re.search(r"\bor\b", value, re.I) and re.search(
+                    r"(?<!\w)" + re.escape(value) + r"\s+or\b|\bor\s+" + re.escape(value) + r"(?!\w)", checked, re.I
+                ):
+                    return True
+    return False
+
 
 def compact(value):
     return re.sub(r"[^a-z0-9]", "", str(value).casefold())

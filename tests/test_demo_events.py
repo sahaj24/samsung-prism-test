@@ -63,3 +63,14 @@ def test_gemini_status_requires_confirmed_provider_connection(tmp_path):
     statuses = [json.loads(line)['state'] for line in trace.path.read_text().splitlines()
                 if json.loads(line)['event'] == 'gemini_connection']
     assert statuses == ['connected', 'reconnecting', 'disconnected']
+
+
+@pytest.mark.asyncio
+async def test_phone_preview_script_is_served_as_javascript():
+    # Exercise the same asset-handler contract as the existing direct feed tests.
+    # The real HTTP asset response is also checked in the running browser.
+    response = await demo_server.phone_script()
+    assert response.media_type == 'text/javascript'
+    assert response.path == demo_server.DEMO / 'phone.js'
+    assert response.path.is_file()
+    assert '/phone.js' in {route.path for route in demo_server.app.routes}

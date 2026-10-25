@@ -38,3 +38,6 @@ client_secret*.json
 /docs/DEMO_PHASE*.md
 /HOLDOUT_HANDOFF.md
 /:memory:.ses
+/Reprise.desktop
+/*.mp4
+/docs/superpowers/

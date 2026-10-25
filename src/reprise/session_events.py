@@ -37,12 +37,25 @@ def attach_session_events(session, coordinator):
             interrupted=getattr(item, "interrupted", False),
         )
         if item.role == "assistant":
-            observer = getattr(coordinator.backend, "observe_assistant", None)
-            if observer:
-                observer(item.text_content, interrupted=getattr(item, "interrupted", False))
             speech = getattr(session, "current_speech", None)
             response_id = getattr(speech, "id", None) or coordinator.last_response_id
             context = coordinator.response_contexts.get(response_id, {})
+            current = context.get("input_id", coordinator.current_input_id) == coordinator.current_input_id
+            checker = getattr(coordinator.backend, "response_correction", None)
+            correction = checker(item.text_content) if checker and current and not getattr(item, "interrupted", False) else None
+            if correction:
+                trace.event("assistant_claim_unverified", message_id=getattr(item, "id", None),
+                            actual_text=item.text_content, correction=correction)
+                if coordinator.current_input_id not in coordinator._grounding_notices:
+                    coordinator._grounding_notices.add(coordinator.current_input_id)
+                    session.interrupt()
+                    session.generate_reply(
+                        instructions="Correct the preceding unsupported claim using only these actual receipt facts. Do not use tools or promise background work: " + correction,
+                        tool_choice="none", tools=[],
+                    )
+            observer = getattr(coordinator.backend, "observe_assistant", None)
+            if observer and current and not correction:
+                observer(item.text_content, interrupted=getattr(item, "interrupted", False))
             with trace.bind(**context):
                 trace.event(
                     "assistant_response",
