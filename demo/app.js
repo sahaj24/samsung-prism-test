@@ -45,7 +45,7 @@ function describeEvent(event) {
   if (event.event === 'tool_executed') {
     title = outcomes[event.outcome] || event.outcome || 'Outcome not reported';
     if (event.outcome === 'success' && ['prepare_plan','prepare_change','prepare_resource_change'].includes(event.function)) title = 'Prepared';
-    if (event.outcome === 'success' && event.function === 'execute_plan') title = 'Completed';
+    if (event.outcome === 'success' && event.function === 'execute_plan') title = event.simulated?'Completed':'Execution returned';
   }
   if (!title) return null;
   if (event.function) title += ' · ' + event.function.replaceAll('_',' ');
@@ -69,6 +69,7 @@ function timelineState(event) {
   if (event.event === 'intent_revised') return 'corrected';
   if (['tool_dispatch','external_api_started'].includes(event.event) || event.plan?.status === 'running') return 'running';
   if (event.event === 'tool_executed' && event.outcome === 'success' && ['prepare_plan','prepare_change','prepare_resource_change'].includes(event.function)) return 'pending';
+  if (!event.simulated && event.event === 'tool_executed' && event.outcome === 'success' && event.function === 'execute_plan') return 'info';
   if (event.outcome === 'success' || event.plan?.status === 'completed' || event.event === 'demo_result') return 'completed';
   if (['tool_raw_proposed','tool_proposed','approval_checked','approval_revoked'].includes(event.event) || ['approval_required','prepared'].includes(event.outcome) || event.plan?.status === 'prepared') return 'pending';
   return 'info';
@@ -186,6 +187,45 @@ const playback = ReprisePhone.createPlayback(frame => {
   focusDemoPresentation(frame.scene);
   $('demoProgress').textContent = playback.position + ' / ' + playback.length;
 });
+// Keep one set of controls and result components for both data sources.
+const liveResults=document.createElement('section');
+liveResults.className='live-results';liveResults.hidden=true;
+liveResults.setAttribute('aria-label','Agent results');
+const phoneStage=document.querySelector('.phone-stage');
+phoneStage.before(liveResults);
+const sessionControls=document.querySelector('.call-controls');
+const phoneControlsParent=sessionControls.parentNode;
+const statusParent=$('status').parentNode;
+const planParent=$('planCard').parentNode;
+const presentationControls=document.querySelector('.presentation-controls');
+const presentationParent=presentationControls.parentNode;
+const timelinePanel=document.querySelector('.timeline-panel');
+const timelineParent=timelinePanel.parentNode;
+const actionCard=$('phoneActivity');
+liveResults.append(actionCard);
+const micIndicator=document.createElement('span');
+micIndicator.className='mic-indicator';micIndicator.textContent='Mic off';
+document.querySelector('.chat').prepend(micIndicator);
+let presentationMode='live', livePlan=null;
+function syncModeAvailability(){
+  $('experience').disabled=false;
+  $('experience').querySelector('[value="scripted"]').disabled=!!(activeRoom||room||$('start').disabled&&!demoActive);
+}
+function presentDataSource(){
+  document.querySelector('main').dataset.source=demoActive?'preview':presentationMode;
+  phoneStage.hidden=!demoActive;liveResults.hidden=demoActive||presentationMode==='demo-live';
+  if(demoActive){
+    phoneControlsParent.insertBefore(sessionControls,document.querySelector('.phone-nav'));
+    statusParent.append($('status'));planParent.append($('planCard'));
+    presentationParent.append(presentationControls);timelineParent.append(timelinePanel);
+  }else{
+    document.querySelector('.topbar .connection').prepend(presentationControls,sessionControls);
+    sessionControls.append($('status'));liveResults.append($('planCard'));
+    if(presentationMode==='live')liveResults.append(timelinePanel);
+    else timelineParent.append(timelinePanel);
+  }
+  syncModeAvailability();
+}
 function pauseDemo() {demoPlaying=false; ++demoEpoch; clearInterval(demoTimer); $('demoPlay').textContent='Play';}
 function resetDemo() {
   pauseDemo(); ++demoRun; playback.reset($('demoWorkflow').value);showPresentationChannel();
@@ -202,8 +242,14 @@ function nextDemo() {
   if (!playback.advance() || playback.position===playback.length) pauseDemo();
 }
 $('experience').onchange = () => {
-  if (activeRoom || room || ($('start').disabled && !demoActive)) { $('experience').value='live'; return; }
-  pauseDemo(); demoActive=$('experience').value==='scripted';callAssistActive=$('experience').value==='assist';showPresentationChannel();
+  const next=$('experience').value;
+  if(next==='scripted'&&(activeRoom||room||$('start').disabled&&!demoActive)){$('experience').value=presentationMode;return;}
+  const wasDemo=demoActive;
+  presentationMode=next;
+  if(!wasDemo&&next!=='scripted'){presentDataSource();return;}
+  if(!wasDemo)livePlan=currentPlan;
+  pauseDemo(); demoActive=next==='scripted';callAssistActive=!demoActive&&$('mode').value==='call_assist';showPresentationChannel();
+  presentDataSource();
   currentTranscriptRow?.setAttribute('data-current','false');currentTranscriptRow=null;lastUserRow=null;
   $('phoneSurface').setAttribute('data-experience',demoActive?'scripted':callAssistActive?'call-assist':'live');
   $('demoControls').hidden=!demoActive; $('demoBadge').hidden=!demoActive; $('voiceConnections').hidden=demoActive;
@@ -211,13 +257,15 @@ $('experience').onchange = () => {
   if (demoActive) {
     $('phoneModality').textContent='Scripted demo'; service('livekitStatus','not used'); service('geminiStatus','not used'); resetDemo();
   } else {
-    currentPlan=null; $('planCard').hidden=true; $('phoneRevision').hidden=true; $('phoneTranscriptRow').hidden=true;
+    currentPlan=livePlan; $('planCard').hidden=!currentPlan; $('phoneRevision').hidden=true; $('phoneTranscriptRow').hidden=true;
     $('phoneModality').textContent='Voice assistant'; phone.reset(); showStatus('Not connected');
     service('livekitStatus','disconnected');service('geminiStatus','disconnected');
-    if(callAssistActive){$('mode').value='call_assist';$('planner').value='gemini';$('mode').disabled=true;$('planner').disabled=true;assistCalendar=null;assistSupersededTime=null;assistCall();}
-    else if($('mode').value==='call_assist')$('mode').value='productivity';
+    if(callAssistActive){$('planner').value='gemini';$('planner').disabled=true;}
+    if(currentPlan)renderPlan(currentPlan);
   }
+  syncModeAvailability();
 };
+$('mode').onchange=()=>{callAssistActive=$('mode').value==='call_assist';if(callAssistActive)$('planner').value='gemini';$('planner').disabled=callAssistActive;};
 $('demoWorkflow').onchange = () => {if (demoActive) resetDemo();};
 $('demoRestart').onclick = () => {if (demoActive) resetDemo();};
 $('demoNext').onclick = () => {pauseDemo(); nextDemo();};
@@ -245,6 +293,7 @@ function phoneTranscript(role,text) {
   $('phoneTranscriptRow').hidden = !text;
 }
 function phoneActivity(entry,event) {
+  if(event.simulated)return;
   const state = timelineState(event);
   const labels = {pending:'Pending',running:'Running',completed:'Completed',cancelled:'Superseded',interrupted:'Speech interrupted',corrected:'Intent revised',failed:'Failed',unknown:'Outcome unknown',info:'Activity'};
   $('phoneActivity').hidden = !!currentPlan && (event.event === 'plan_updated' || (event.event === 'tool_executed' && ['prepare_plan','prepare_change','prepare_resource_change','execute_plan'].includes(event.function)));
@@ -252,6 +301,10 @@ function phoneActivity(entry,event) {
   $('phoneActivityState').textContent = labels[state];
   $('phoneActivityTitle').textContent = entry.title;
   $('phoneActivityText').textContent = entry.text || '';
+  if(!demoActive&&currentPlan&&(['plan_updated'].includes(event.event)||['prepare_plan','prepare_change','prepare_resource_change','execute_plan'].includes(event.function))){actionCard.hidden=true;return;}
+  if(!demoActive&&!['plan_updated'].includes(event.event)&&!['prepare_plan','prepare_change','prepare_resource_change','execute_plan'].includes(event.function)){
+    actionCard.hidden=false;$('planCard').hidden=true;
+  }
 }
 function liveText(role,text) {
   $(role === 'user' ? 'partial' : 'agentPartial').textContent = text ? (role === 'user' ? 'You' : 'Reprise') + ' · ' + text : '';
@@ -260,6 +313,7 @@ function liveText(role,text) {
   if (text) phoneTranscript(role,text);
 }
 function showStatus(label) {
+  micIndicator.textContent=activeRoom?(muted?'Mic muted':'Mic on'):'Mic off';
   $('status').textContent = label; $('phoneStatus').textContent = label;
   const state = ({Speaking:'speaking',Listening:'listening','User speaking':'listening',Processing:'thinking',Interrupted:'interrupted',Connecting:'connecting'})[label] || 'idle';
   $('phoneSurface').setAttribute('data-state',state);
@@ -316,6 +370,12 @@ function append(entry, event = {}) {
     if (event.event) phoneActivity(entry,event);
   }
   focusAssistPresentation();
+  if(!demoActive){
+    const rows=presentationRows.filter(r=>!r.simulated&&r.room===activeRoom);
+    for(const r of rows.filter(r=>r.role)){const age=rows.filter(r=>r.role).indexOf(r);r.node.dataset.recency=String(rows.filter(r=>r.role).length-1-age);}
+    const actions=rows.filter(r=>!r.role&&r.node.dataset.quiet!=='true');
+    actions.forEach((r,i)=>r.node.dataset.liveHistory=String(i>=actions.length-4));
+  }
 }
 function renderEvent(event) {
   if(callAssistActive&&event.simulated)return;
@@ -391,6 +451,7 @@ async function finishSession() {
   document.querySelectorAll('[data-agent-audio]').forEach(el => el.remove());
   ['end','mute','speaker','text','send','confirmPlan'].forEach(id => $(id).disabled = true);
   $('start').disabled = false; $('mode').disabled = false; $('planner').disabled = false; $('experience').disabled = false; liveText('user','');
+  syncModeAvailability();
   $('phoneSurface').setAttribute('data-call-connected','false');
   if(callAssistActive){$('mode').disabled=true;$('planner').disabled=true;assistCall();}
   service('livekitStatus','disconnected'); service('geminiStatus','disconnected'); liveText('assistant',''); liveSegments.clear();
@@ -398,8 +459,8 @@ async function finishSession() {
 }
 $('start').onclick = async () => {
   if (demoActive) return;
-  $('experience').disabled = true;
   $('start').disabled = true; notice(''); showStatus('Connecting'); service('livekitStatus','connecting'); service('geminiStatus','waiting for agent');
+  callAssistActive=$('mode').value==='call_assist';syncModeAvailability();
   const epoch = ++generation;
   localMode = !callAssistActive&&$('planner').value === 'local';
   $('phoneModality').textContent = localMode ? 'Text assistant' : 'Voice assistant';
@@ -466,6 +527,7 @@ $('mute').onclick = async () => {
   const target = room; if (!target) return; $('mute').disabled = true;
   try { await target.localParticipant.setMicrophoneEnabled(muted); muted = !muted;
     $('mute').textContent = muted ? 'Unmute microphone' : 'Mute microphone'; $('mute').setAttribute('aria-pressed',String(muted));
+    micIndicator.textContent=muted?'Mic muted':'Mic on';
     append({title:muted ? 'Microphone muted' : 'Microphone enabled'});
     if(callAssistActive&&phone.current.app==='call')assistCall({confirmation:phone.current.confirmation,confirmationDetail:phone.current.confirmationDetail});
   } catch {notice('Microphone could not be changed.');}
@@ -514,6 +576,7 @@ function when(value) {
 }
 function renderPlan(plan) {
   if (!plan) return;
+  if(!demoActive){livePlan=plan;actionCard.hidden=true;}
   if(callAssistActive&&currentPlan&&plan.plan_id!==currentPlan.plan_id&&(plan.revision||0)<(currentPlan.revision||0))return;
   currentPlan = plan;
   $('planCard').hidden = false;
@@ -565,6 +628,7 @@ $('confirmPlan').onclick = async () => {
     $('planNote').textContent = 'Confirmed';
   } catch (error) {notice(error.message || 'Confirmation failed'); if (currentPlan) renderPlan(currentPlan);}
 };
+presentDataSource();
 checkGoogle();
 setInterval(checkGoogle,5000);
 }
