@@ -121,12 +121,17 @@ function validateActivation(reply,mode){
   return reply.state;
 }
 async function negotiatePresentation(target,mode){
-  let agent=[...target.remoteParticipants.values()].find(p=>p.isAgent);
+  const readyAgent=()=>[...target.remoteParticipants.values()].find(p=>
+    p.isAgent&&p.attributes?.['reprise.activation_ready']==='2');
+  let agent=readyAgent();
   if(!agent)agent=await new Promise((resolve,reject)=>{
-    const joined=p=>{if(p.isAgent){cleanup();resolve(p);}};
-    const timer=setTimeout(()=>{cleanup();reject(new Error('Voice agent did not connect.'));},20000);
-    const cleanup=()=>{clearTimeout(timer);target.off('participantConnected',joined);};
-    target.on('participantConnected',joined);
+    const cleanup=()=>{clearTimeout(timer);target.off('participantConnected',check);
+      target.off('participantAttributesChanged',check);target.off('disconnected',disconnected);};
+    const check=()=>{const ready=readyAgent();if(ready){cleanup();resolve(ready);}};
+    const disconnected=()=>{cleanup();reject(new Error('Disconnected before the voice agent was ready.'));};
+    const timer=setTimeout(()=>{cleanup();reject(new Error('Voice agent is not ready. Restart Reprise and reconnect.'));},20000);
+    target.on('participantConnected',check);target.on('participantAttributesChanged',check);
+    target.on('disconnected',disconnected);check();
   });
   const reply=JSON.parse(await target.localParticipant.performRpc({destinationIdentity:agent.identity,
     method:'reprise.presentation',payload:JSON.stringify({mode,activation_version:2}),responseTimeout:10000}));
@@ -542,6 +547,7 @@ $('start').onclick = async () => {
   $('phoneTranscriptRow').hidden = true; $('phoneActivity').hidden = true; $('phoneRevision').hidden = true;
   $('localStatus').hidden = !localMode;
   if (localMode) {service('livekitStatus','not used'); service('geminiStatus','not used'); service('localStatus','connecting');}
+  let connectionStage='request session';
   try {
     const response = await fetch('/session?mode=' + encodeURIComponent($('mode').value) + '&planner=' + (localMode ? 'local' : 'gemini') + '&presentation=' + (presentationMode==='demo-live'?'demo-live':'live'), {method:'POST'});
     if (!response.ok) throw new Error('Could not start a session (' + response.status + ')');
@@ -586,7 +592,11 @@ $('start').onclick = async () => {
       if (track.kind === Track.Kind.Audio && epoch === generation) { const el = track.attach(); el.dataset.agentAudio='true'; el.muted=audioMuted; document.body.append(el); }
     });
     room.on(RoomEvent.Disconnected, () => { if (epoch === generation && activeRoom) closeSession(); });
-    await room.connect(data.url,data.token); await room.startAudio();
+    connectionStage='join LiveKit';
+    await room.connect(data.url,data.token);
+    connectionStage='enable audio playback';
+    await room.startAudio();
+    connectionStage='confirm activation and microphone';
     const activated=await connectVoiceInput(room,presentationMode);
     if(epoch!==generation)return;
     activationState=activated.state;activationEpoch=activated.epoch;renderActivation();
@@ -598,7 +608,10 @@ $('start').onclick = async () => {
     if(callAssistActive){$('phoneSurface').setAttribute('data-call-connected','true');assistCall();}
     append({title:'Session connected',text:$('mode').value === 'productivity' ? 'Google Workspace' : 'Simulated tools'});
     showStatus('Connected'); ['end','mute','speaker','text','send'].forEach(id => $(id).disabled=false); await poll();
-  } catch (error) { notice(error.message || 'Connection failed'); await closeSession(); }
+  } catch (error) {
+    console.error('Reprise connection failed at '+connectionStage, error.stack||error.message);
+    notice(connectionStage+': '+(error.message||'Connection failed')); await closeSession();
+  }
 };
 $('end').onclick = closeSession;
 $('mute').onclick = async () => {

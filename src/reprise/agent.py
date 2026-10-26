@@ -217,6 +217,13 @@ async def entrypoint(ctx: agents.JobContext):
             text_input=room_io.TextInputOptions(text_input_cb=make_text_input_handler(coordinator)),
         ),
     )
+    # Presence is announced by ctx.connect(), before our RPC/session are ready.
+    # Advertise readiness only after both exist, so the browser cannot race setup.
+    await ctx.room.local_participant.set_attributes({
+        "reprise.activation_ready": str(ACTIVATION_VERSION),
+    })
+    trace.event("activation_ready", activation_version=ACTIVATION_VERSION)
+
     async def monitor_speech():
         try:
             participant = await ctx.wait_for_participant()

@@ -49,12 +49,12 @@ async def origin_guard(request: Request, call_next):
 
 @app.get("/")
 async def home():
-    return FileResponse(DEMO / "index.html")
+    return FileResponse(DEMO / "index.html", headers={"Cache-Control": "no-store"})
 
 
 @app.get("/app.js")
 async def script():
-    return FileResponse(DEMO / "app.js", media_type="text/javascript")
+    return FileResponse(DEMO / "app.js", media_type="text/javascript", headers={"Cache-Control": "no-store"})
 
 
 @app.get("/phone.js")

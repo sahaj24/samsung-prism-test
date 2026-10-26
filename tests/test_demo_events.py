@@ -100,3 +100,9 @@ async def test_session_carries_activation_contract_to_room_and_browser(presentat
     assert captured == [{'reprise_mode': 'productivity', 'presentation': presentation, 'activation_version': 2}]
     assert response['presentation'] == presentation
     assert response['activation_version'] == 2
+
+
+@pytest.mark.asyncio
+async def test_local_frontend_assets_do_not_reuse_stale_activation_code():
+    assert (await demo_server.home()).headers['cache-control'] == 'no-store'
+    assert (await demo_server.script()).headers['cache-control'] == 'no-store'

@@ -15,7 +15,7 @@ test('the agent must acknowledge the actual guard, not merely the selected UI mo
 });
 test('microphone remains unpublished if activation acknowledgement fails',async()=>{
  const published=[];
- const target={remoteParticipants:new Map([['agent',{identity:'agent',isAgent:true}]]),localParticipant:{
+ const target={remoteParticipants:new Map([['agent',{identity:'agent',isAgent:true,attributes:{'reprise.activation_ready':'2'}}]]),localParticipant:{
   performRpc:async()=>JSON.stringify({...reply(),enabled:false}),
   setMicrophoneEnabled:async value=>published.push(value)}};
  await assert.rejects(connectVoiceInput(target,'demo-live'));
@@ -23,9 +23,18 @@ test('microphone remains unpublished if activation acknowledgement fails',async(
 });
 test('activation negotiation precedes microphone input',async()=>{
  const order=[];
- const target={remoteParticipants:new Map([['agent',{identity:'agent',isAgent:true}]]),localParticipant:{
+ const target={remoteParticipants:new Map([['agent',{identity:'agent',isAgent:true,attributes:{'reprise.activation_ready':'2'}}]]),localParticipant:{
   performRpc:async data=>{order.push('guard');assert.equal(JSON.parse(data.payload).activation_version,2);return JSON.stringify(reply());},
   setMicrophoneEnabled:async value=>order.push(value?'microphone':'muted')}};
  await connectVoiceInput(target,'demo-live');
  assert.deepEqual(order,['guard','microphone']);
+});
+
+test('agent presence alone does not mean its activation RPC is registered',async()=>{
+ const order=[],handlers={};const agent={identity:'agent',isAgent:true,attributes:{}};
+ const target={remoteParticipants:new Map([['agent',agent]]),on:(n,f)=>handlers[n]=f,off:n=>delete handlers[n],localParticipant:{
+ performRpc:async()=>{order.push('rpc');return JSON.stringify(reply());},setMicrophoneEnabled:async()=>order.push('microphone')}};
+ const connecting=connectVoiceInput(target,'demo-live');await Promise.resolve();assert.deepEqual(order,[]);
+ agent.attributes['reprise.activation_ready']='2';handlers.participantAttributesChanged({},agent);
+ await connecting;assert.deepEqual(order,['rpc','microphone']);assert.deepEqual(Object.keys(handlers),[]);
 });
